@@ -1,0 +1,41 @@
+{
+    "id": 67,
+    "platform": "iracing",
+    "name": "Autódromo José Carlos Pace",
+    "variant": "Grand Prix",
+    "shortname": "Interlagos (GP)",
+    "has_map": true,
+    "sectors": [
+        0.278071,
+        0.431505,
+        0.609232,
+        0.725358
+    ],
+    "lap_length": 4306.5938,
+    "turns": 15,
+    "location": "Interlagos, São Paulo, Brazil",
+    "bounds": [
+        -46.700481849318926,
+        -46.69407258851263,
+        -23.706354493172682,
+        -23.697005052132955
+    ],
+    "has_edges": true,
+    "links": [
+        {
+            "type": "info",
+            "label": "Track info",
+            "url": "https://members-ng.iracing.com/web/shop/tracks?trackId=212"
+        },
+        {
+            "type": "trackwalk",
+            "label": "Track walk",
+            "url": "https://irtrackwalk.com/autodromo-jose-carlos-pace/grand-prix/"
+        }
+    ],
+    "config": {
+        "offtracks": null,
+        "jokers": null
+    },
+    "cutoff": "0001-01-01T00:00:00Z"
+}

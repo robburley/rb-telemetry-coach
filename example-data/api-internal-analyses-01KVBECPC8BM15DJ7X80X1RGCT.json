@@ -1,0 +1,357 @@
+{
+    "id": "01KVBECPC8BM15DJ7X80X1RGCT",
+    "user": "01KEETQZ3AHX2HBRAXJB9YMT2N",
+    "type": "laps",
+    "tracks": [
+        67
+    ],
+    "cars": [
+        145
+    ],
+    "laps": [
+        {
+            "id": "01KVD5KT9N6BVP198FAYG3Y8CX",
+            "type": "static",
+            "lap": "01KVBPW12Z5WJY1W33G47N95KW",
+            "options": null,
+            "laps": [
+                {
+                    "id": "01KVBPW12Z5WJY1W33G47N95KW",
+                    "user": "01GRS1EY62H9MJ1Y7PTNYVK4N6",
+                    "event": "01KVBH2CEJ4DMZMZ3YAEWF1J3D",
+                    "car_id": 145,
+                    "track_id": 67,
+                    "season": 34,
+                    "start_time": "2026-06-17T21:07:27.733333Z",
+                    "lap_number": 27,
+                    "lap_time": 108.31520080566406,
+                    "have_samples": true,
+                    "clean": true,
+                    "track_temp": 26.666656494140625,
+                    "track_usage": 71,
+                    "track_wetness": 17,
+                    "sectors": [
+                        {
+                            "sector_time": 27.236759387,
+                            "incomplete": false
+                        },
+                        {
+                            "sector_time": 15.582540929,
+                            "incomplete": false
+                        },
+                        {
+                            "sector_time": 22.39013136,
+                            "incomplete": false
+                        },
+                        {
+                            "sector_time": 15.215198008,
+                            "incomplete": false
+                        },
+                        {
+                            "sector_time": 27.908703647,
+                            "incomplete": false
+                        }
+                    ],
+                    "session_type": 1,
+                    "run": 1,
+                    "fuel_level": 12.414206,
+                    "fuel_used": 1.2468688,
+                    "weight_penalty": 0,
+                    "power_adjust": 0,
+                    "setup_fixed": true,
+                    "driver_name": "Shaun McGoldrick",
+                    "driver_rating": 2659,
+                    "driver": {
+                        "slug": "shaun-mcgoldrick",
+                        "firstname": "Shaun",
+                        "lastname": "McGoldrick",
+                        "profile_image": "def11646099b8085f8f3bfa6ec25ffc6acd9daae1830d3637bd9d4dfecb80760"
+                    },
+                    "tire_compound": 1,
+                    "ghost_available": true,
+                    "session_fastest": true,
+                    "weather_air_temp": 21.13174,
+                    "weather_cloud_cover": 3,
+                    "weather_air_density": 1.0943598,
+                    "weather_air_pressure": 93112.875,
+                    "weather_wind_vel": 4.511414,
+                    "weather_wind_dir": 4.997616,
+                    "weather_relative_humidity": 0.7078092,
+                    "weather_fog_level": 0,
+                    "weather_precipitation": 0,
+                    "can_view_telemetry": true,
+                    "car_info": {
+                        "id": 145,
+                        "platform": "iracing",
+                        "name": "Toyota GR86",
+                        "shortname": "Toyota GR86"
+                    },
+                    "track_info": {
+                        "id": 67,
+                        "platform": "iracing",
+                        "name": "Autódromo José Carlos Pace",
+                        "variant": "Grand Prix",
+                        "shortname": "Interlagos (GP)",
+                        "has_map": true
+                    },
+                    "event_info": {
+                        "id": "01KVBH2CEJ4DMZMZ3YAEWF1J3D",
+                        "platform": "iracing",
+                        "platform_id": "312621204/86518801/0",
+                        "event_type": 2,
+                        "season": 34,
+                        "name": "",
+                        "started_at": "2026-06-17T19:28:27.300049Z"
+                    }
+                }
+            ]
+        },
+        {
+            "id": "01KVD5HC8VNCXHVWHSAWKPYG0M",
+            "type": "static",
+            "lap": "01KVBPNG1EVNB3D9310P6X2J1K",
+            "options": null,
+            "laps": [
+                {
+                    "id": "01KVBPNG1EVNB3D9310P6X2J1K",
+                    "user": "01KEETQZ3AHX2HBRAXJB9YMT2N",
+                    "event": "01KVBHFN59VQFEBM8A8AH0MNRM",
+                    "car_id": 145,
+                    "track_id": 67,
+                    "season": 34,
+                    "start_time": "2026-06-17T20:47:44.7Z",
+                    "lap_number": 25,
+                    "lap_time": 109.35250091552734,
+                    "have_samples": true,
+                    "clean": true,
+                    "track_temp": 27.77777099609375,
+                    "track_usage": 71,
+                    "track_wetness": 17,
+                    "sectors": [
+                        {
+                            "sector_time": 27.411511345,
+                            "incomplete": false
+                        },
+                        {
+                            "sector_time": 15.624616712,
+                            "incomplete": false
+                        },
+                        {
+                            "sector_time": 22.771717978,
+                            "incomplete": false
+                        },
+                        {
+                            "sector_time": 15.327759654,
+                            "incomplete": false
+                        },
+                        {
+                            "sector_time": 28.231060976,
+                            "incomplete": false
+                        }
+                    ],
+                    "session_type": 1,
+                    "run": 2,
+                    "fuel_level": 23.35384,
+                    "fuel_used": 1.2393234,
+                    "weight_penalty": 0,
+                    "power_adjust": 0,
+                    "setup_fixed": true,
+                    "driver_name": "Rob Burley",
+                    "driver_rating": 2052,
+                    "full_setup": {
+                        "id": "2239268d79d69ab3eba932b6a22237151a88d52e",
+                        "platform": "iracing",
+                        "user": "01KEETQZ3AHX2HBRAXJB9YMT2N",
+                        "car": 145,
+                        "track": 67,
+                        "name": "GR86 Interlagos",
+                        "parameters": {
+                            "Chassis": {
+                                "Front": {
+                                    "ArbSetting": "3",
+                                    "ArbSize": "Stiff",
+                                    "BumpRubberLength": "0.020",
+                                    "CrossWeight": "50.0%",
+                                    "NoseWeight": "54.3%",
+                                    "ToeIn": "-2.2 mm"
+                                },
+                                "InCarDials": {
+                                    "AbsSetting": "2 (ABS)",
+                                    "BrakePads": "Medium friction",
+                                    "BrakePressureBias": "50.0%",
+                                    "TcSetting": "1 (TC)"
+                                },
+                                "LeftFront": {
+                                    "BumpStiffness": "+3 clicks",
+                                    "Camber": "-4.0 deg",
+                                    "CornerWeight": "3597 N",
+                                    "FenderHeight": "581.2 mm",
+                                    "ReboundStiffness": "+22 clicks",
+                                    "RideHeight": "106.1 mm",
+                                    "SpringPerchOffset": "103.0 mm",
+                                    "SpringRate": "61 N/mm"
+                                },
+                                "LeftRear": {
+                                    "BumpStiffness": "+3 clicks",
+                                    "CornerWeight": "3038 N",
+                                    "FenderHeight": "596.5 mm",
+                                    "ReboundStiffness": "+10 clicks",
+                                    "RideHeight": "119.3 mm",
+                                    "SpringPerchOffset": "86.0 mm",
+                                    "SpringRate": "53 N/mm",
+                                    "ToeIn": "+1.6 mm"
+                                },
+                                "Rear": {
+                                    "ArbSetting": "1",
+                                    "ArbSize": "Soft",
+                                    "FuelLevel": "28.3 L",
+                                    "WingSetting": "10"
+                                },
+                                "RightFront": {
+                                    "BumpStiffness": "+3 clicks",
+                                    "Camber": "-4.0 deg",
+                                    "CornerWeight": "3420 N",
+                                    "FenderHeight": "580.8 mm",
+                                    "ReboundStiffness": "+22 clicks",
+                                    "RideHeight": "106.2 mm",
+                                    "SpringPerchOffset": "107.5 mm",
+                                    "SpringRate": "61 N/mm"
+                                },
+                                "RightRear": {
+                                    "BumpStiffness": "+3 clicks",
+                                    "CornerWeight": "2869 N",
+                                    "FenderHeight": "596.1 mm",
+                                    "ReboundStiffness": "+10 clicks",
+                                    "RideHeight": "119.4 mm",
+                                    "SpringPerchOffset": "90.5 mm",
+                                    "SpringRate": "53 N/mm",
+                                    "ToeIn": "+1.6 mm"
+                                }
+                            },
+                            "Tires": {
+                                "LeftFront": {
+                                    "LastHotPressure": "172 kPa",
+                                    "LastTempsOMI": "47C, 47C, 47C",
+                                    "StartingPressure": "172 kPa",
+                                    "TreadRemaining": "100%, 100%, 100%"
+                                },
+                                "LeftRear": {
+                                    "LastHotPressure": "172 kPa",
+                                    "LastTempsOMI": "47C, 47C, 47C",
+                                    "StartingPressure": "172 kPa",
+                                    "TreadRemaining": "100%, 100%, 100%"
+                                },
+                                "RightFront": {
+                                    "LastHotPressure": "172 kPa",
+                                    "LastTempsIMO": "47C, 47C, 47C",
+                                    "StartingPressure": "172 kPa",
+                                    "TreadRemaining": "100%, 100%, 100%"
+                                },
+                                "RightRear": {
+                                    "LastHotPressure": "172 kPa",
+                                    "LastTempsIMO": "47C, 47C, 47C",
+                                    "StartingPressure": "172 kPa",
+                                    "TreadRemaining": "100%, 100%, 100%"
+                                },
+                                "TireType": {
+                                    "TireType": "Dry"
+                                }
+                            }
+                        },
+                        "has_file": true,
+                        "rights": {}
+                    },
+                    "driver": {
+                        "slug": "rob-burley",
+                        "firstname": "Rob",
+                        "lastname": "Burley"
+                    },
+                    "tire_compound": 1,
+                    "ghost_available": true,
+                    "session_fastest": true,
+                    "weather_air_temp": 21.275904,
+                    "weather_cloud_cover": 3,
+                    "weather_air_density": 1.0943785,
+                    "weather_air_pressure": 93152.81,
+                    "weather_wind_vel": 4.907552,
+                    "weather_wind_dir": 4.745343,
+                    "weather_relative_humidity": 0.6943242,
+                    "weather_fog_level": 0,
+                    "weather_precipitation": 0,
+                    "can_view_telemetry": true,
+                    "car_info": {
+                        "id": 145,
+                        "platform": "iracing",
+                        "name": "Toyota GR86",
+                        "shortname": "Toyota GR86"
+                    },
+                    "track_info": {
+                        "id": 67,
+                        "platform": "iracing",
+                        "name": "Autódromo José Carlos Pace",
+                        "variant": "Grand Prix",
+                        "shortname": "Interlagos (GP)",
+                        "has_map": true
+                    },
+                    "event_info": {
+                        "id": "01KVBHFN59VQFEBM8A8AH0MNRM",
+                        "platform": "iracing",
+                        "platform_id": "312621204/86518801/2",
+                        "event_type": 2,
+                        "season": 34,
+                        "name": "",
+                        "started_at": "2026-06-17T19:28:25.083333Z"
+                    },
+                    "can_view_setup": true,
+                    "setup_available": true,
+                    "setup_name": "GR86 Interlagos"
+                }
+            ]
+        }
+    ],
+    "options": {},
+    "created_at": "2026-06-17T18:44:40.968436Z",
+    "modified_at": "2026-06-18T11:24:58.878985Z",
+    "track_info": [
+        {
+            "id": 67,
+            "platform": "iracing",
+            "name": "Autódromo José Carlos Pace",
+            "variant": "Grand Prix",
+            "shortname": "Interlagos (GP)",
+            "has_map": true
+        }
+    ],
+    "car_info": [
+        {
+            "id": 145,
+            "platform": "iracing",
+            "name": "Toyota GR86",
+            "shortname": "Toyota GR86"
+        }
+    ],
+    "user_info": [
+        {
+            "slug": "shaun-mcgoldrick",
+            "firstname": "Shaun",
+            "lastname": "McGoldrick",
+            "profile_image": "def11646099b8085f8f3bfa6ec25ffc6acd9daae1830d3637bd9d4dfecb80760"
+        },
+        {
+            "slug": "rob-burley",
+            "firstname": "Rob",
+            "lastname": "Burley"
+        }
+    ],
+    "owner": {
+        "slug": "rob-burley",
+        "firstname": "Rob",
+        "lastname": "Burley"
+    },
+    "shares_privacy": {
+        "restricted_visibility": false,
+        "restricted_owner": false,
+        "restricted_users": [],
+        "restricted_teams": []
+    }
+}
