@@ -136,6 +136,12 @@ export interface BrakeToThrottleTransitionComparisonMetrics {
   coastGapDeltaM?: number;
   targetBrakeThrottleOverlapM?: number;
   referenceBrakeThrottleOverlapM?: number;
+  targetBrakeEntryThrottleOverlapM?: number;
+  referenceBrakeEntryThrottleOverlapM?: number;
+  brakeEntryThrottleOverlapDeltaM?: number;
+  targetThrottleDropWhileBraking?: number;
+  referenceThrottleDropWhileBraking?: number;
+  throttleDropWhileBrakingDelta?: number;
   targetMinSpeedToThrottlePickupM?: number;
   referenceMinSpeedToThrottlePickupM?: number;
   minSpeedToThrottlePickupDeltaM?: number;
@@ -581,12 +587,24 @@ function compareBrakeToThrottleTransition(
     targetEvents.brakeReleaseDistancePct,
     targetEvents.firstThrottleDistancePct,
   );
+  const referenceBrakeEntryThrottleOverlap = summarizeBrakeEntryThrottleOverlap(
+    reference,
+    referenceEvents,
+    lapLengthM,
+  );
+  const targetBrakeEntryThrottleOverlap = summarizeBrakeEntryThrottleOverlap(
+    target,
+    targetEvents,
+    lapLengthM,
+  );
 
   if (
     referenceCoastGapM === undefined &&
     targetCoastGapM === undefined &&
     referenceOverlapM === undefined &&
     targetOverlapM === undefined &&
+    referenceBrakeEntryThrottleOverlap.overlapM === undefined &&
+    targetBrakeEntryThrottleOverlap.overlapM === undefined &&
     referenceMinSpeedToThrottlePickupM === undefined &&
     targetMinSpeedToThrottlePickupM === undefined &&
     referenceSpeedLostDuringCoastKmh === undefined &&
@@ -606,6 +624,18 @@ function compareBrakeToThrottleTransition(
       targetOverlapM !== undefined ? Math.max(0, targetOverlapM) : undefined,
     referenceBrakeThrottleOverlapM:
       referenceOverlapM !== undefined ? Math.max(0, referenceOverlapM) : undefined,
+    targetBrakeEntryThrottleOverlapM: targetBrakeEntryThrottleOverlap.overlapM,
+    referenceBrakeEntryThrottleOverlapM: referenceBrakeEntryThrottleOverlap.overlapM,
+    brakeEntryThrottleOverlapDeltaM: optionalDelta(
+      targetBrakeEntryThrottleOverlap.overlapM,
+      referenceBrakeEntryThrottleOverlap.overlapM,
+    ),
+    targetThrottleDropWhileBraking: targetBrakeEntryThrottleOverlap.throttleDrop,
+    referenceThrottleDropWhileBraking: referenceBrakeEntryThrottleOverlap.throttleDrop,
+    throttleDropWhileBrakingDelta: optionalDelta(
+      targetBrakeEntryThrottleOverlap.throttleDrop,
+      referenceBrakeEntryThrottleOverlap.throttleDrop,
+    ),
     targetMinSpeedToThrottlePickupM,
     referenceMinSpeedToThrottlePickupM,
     minSpeedToThrottlePickupDeltaM: optionalDelta(
@@ -618,6 +648,57 @@ function compareBrakeToThrottleTransition(
       targetSpeedLostDuringCoastKmh,
       referenceSpeedLostDuringCoastKmh,
     ),
+  };
+}
+
+function summarizeBrakeEntryThrottleOverlap(
+  telemetry: ResampledTelemetry,
+  events: DetectedDrivingEvents,
+  lapLengthM: number | undefined,
+): { overlapM?: number; throttleDrop?: number } {
+  const throttle = telemetry.channels.throttle;
+  if (
+    !throttle ||
+    events.brakeStartDistancePct === undefined ||
+    events.brakeReleaseDistancePct === undefined ||
+    events.brakeReleaseDistancePct <= events.brakeStartDistancePct
+  ) {
+    return {};
+  }
+
+  const brakeStartIndex = closestDistanceIndex(telemetry.distancePct, events.brakeStartDistancePct);
+  const brakeReleaseIndex = closestDistanceIndex(telemetry.distancePct, events.brakeReleaseDistancePct);
+  if (
+    brakeStartIndex === undefined ||
+    brakeReleaseIndex === undefined ||
+    brakeReleaseIndex <= brakeStartIndex
+  ) {
+    return {};
+  }
+
+  const throttleAtBrakeStart = clampPedal(throttle[brakeStartIndex] ?? 0);
+  if (throttleAtBrakeStart <= THROTTLE_ACTIVE_LEVEL) {
+    return {};
+  }
+
+  let lastOverlappingIndex = brakeReleaseIndex;
+  let minimumThrottleWhileBraking = throttleAtBrakeStart;
+  for (let index = brakeStartIndex; index <= brakeReleaseIndex; index += 1) {
+    const value = clampPedal(throttle[index] ?? 0);
+    minimumThrottleWhileBraking = Math.min(minimumThrottleWhileBraking, value);
+    if (value <= THROTTLE_ACTIVE_LEVEL) {
+      lastOverlappingIndex = index;
+      break;
+    }
+  }
+
+  return {
+    overlapM: distanceBetweenPct(
+      telemetry.distancePct[brakeStartIndex],
+      telemetry.distancePct[lastOverlappingIndex],
+      lapLengthM,
+    ),
+    throttleDrop: Math.max(0, throttleAtBrakeStart - minimumThrottleWhileBraking),
   };
 }
 

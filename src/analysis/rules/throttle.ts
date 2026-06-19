@@ -5,7 +5,7 @@ import {
   makeEvidence,
   formatDistanceDelta,
 } from "../evidence";
-import { THROTTLE_RULE_FACTORS, THROTTLE_SEVERITY } from "./constants/throttle";
+import { THROTTLE_SEVERITY } from "./constants/throttle";
 import type { RuleDefinition } from "./index";
 
 export const throttleRules: RuleDefinition[] = [
@@ -154,26 +154,31 @@ export function rushedBrakeToThrottle(
   const speed = comparison.metrics.speed;
   const lift = comparison.metrics.throttleLiftQuality;
   const steering = comparison.metrics.steering;
-  const targetOverlap = transition?.targetBrakeThrottleOverlapM ?? 0;
-  const targetCoastGap = transition?.targetCoastGapM;
-  const rushedGap =
-    targetOverlap > comparison.config.thresholds.coastingGapDeltaM ||
-    (targetCoastGap !== undefined &&
-      targetCoastGap < comparison.config.thresholds.coastingGapDeltaM / THROTTLE_RULE_FACTORS.rushedCoastGapDivisor);
+  const targetOverlap = transition?.targetBrakeEntryThrottleOverlapM;
+  const overlapDelta = transition?.brakeEntryThrottleOverlapDeltaM;
+  const throttleDrop = transition?.targetThrottleDropWhileBraking;
+  const throttleDropDelta = transition?.throttleDropWhileBrakingDelta;
+  const overlappingBrakeEntry =
+    targetOverlap !== undefined &&
+    targetOverlap > comparison.config.thresholds.coastingGapDeltaM &&
+    throttleDrop !== undefined &&
+    throttleDrop > comparison.config.thresholds.pedalDepthDelta &&
+    (overlapDelta === undefined || overlapDelta > comparison.config.thresholds.coastingGapDeltaM / 2) &&
+    (throttleDropDelta === undefined || throttleDropDelta > comparison.config.thresholds.pedalDepthDelta / 2);
   const poorOutcome =
     (lift?.liftCountDelta ?? 0) > 0 ||
     (steering?.correctionCountDelta ?? 0) >= comparison.config.thresholds.correctionCountDelta ||
     (speed?.exitSpeedDeltaKmh ?? 0) < -comparison.config.thresholds.exitSpeedDeltaKmh;
-  if (!transition || !rushedGap || !poorOutcome) {
+  if (!transition || !overlappingBrakeEntry || !poorOutcome) {
     return undefined;
   }
 
   return {
     id: "rushed-brake-to-throttle",
     priority: 60,
-    title: "Separate the release and throttle squeeze",
-    why: "The brake release and throttle pickup are bunched together compared with a calmer handoff, and the exit then needs a lift, correction, or loses speed.",
-    practiceCue: "Finish the release cleanly, let the platform settle, then add throttle you can keep.",
+    title: "Drop throttle before braking",
+    why: "You carry throttle into the brake phase and drop it while the brake is already applied, which can unsettle the platform before the corner is settled.",
+    practiceCue: "Close the throttle before the brake marker, then make the brake application one clean input.",
     category: "throttle",
     severity:
       targetOverlap > THROTTLE_SEVERITY.brakeThrottleOverlapM ||
@@ -183,11 +188,11 @@ export function rushedBrakeToThrottle(
     confidence: 0.68,
     evidence: [
       makeEvidence(
-        targetOverlap > 0 ? "Brake/throttle overlap" : "Coast gap",
-        formatDistanceDuration(targetOverlap > 0 ? targetOverlap : targetCoastGap),
+        "Throttle into braking",
+        formatDistanceDuration(targetOverlap),
         "absolute",
         "primary",
-        { targetBrakeThrottleOverlapM: targetOverlap, targetCoastGapM: targetCoastGap ?? 0 },
+        { targetBrakeEntryThrottleOverlapM: targetOverlap, targetThrottleDropWhileBraking: throttleDrop },
       ),
       ...(speed === undefined
         ? []

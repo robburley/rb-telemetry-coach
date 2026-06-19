@@ -1056,7 +1056,7 @@ describe("Phase 6 transition, line, and rotation rules", () => {
     );
   });
 
-  it("fires rushed brake-to-throttle when overlap leads to a lift or correction", () => {
+  it("fires rushed brake-to-throttle when throttle is dropped during brake overlap", () => {
     const finding = findingsFor(
       compareTelemetry(
         replaceChannels(
@@ -1068,7 +1068,7 @@ describe("Phase 6 transition, line, and rotation rules", () => {
           },
           {
             brake: [0, 1, 0.8, 0.6, 0, 0, 0],
-            throttle: [0, 0.2, 0.45, 0.2, 0.6, 1, 1],
+            throttle: [0, 0.8, 0.45, 0.2, 0.6, 1, 1],
             steeringRad: [0, 0.1, -0.1, 0.15, -0.15, 0.1, 0],
           },
         ),
@@ -1081,12 +1081,38 @@ describe("Phase 6 transition, line, and rotation rules", () => {
         confidence: 0.68,
         evidence: expect.arrayContaining([
           expect.objectContaining({
-            label: "Brake/throttle overlap",
-            raw: expect.objectContaining({ targetBrakeThrottleOverlapM: expect.any(Number) }),
+            label: "Throttle into braking",
+            raw: expect.objectContaining({
+              targetBrakeEntryThrottleOverlapM: expect.any(Number),
+              targetThrottleDropWhileBraking: expect.any(Number),
+            }),
           }),
         ]),
       }),
     );
+  });
+
+  it("does not fire rushed brake-to-throttle for throttle reapplication during braking", () => {
+    const ids = findingsFor(
+      compareTelemetry(
+        replaceChannels(
+          makeContext(),
+          {
+            brake: [0, 1, 0.8, 0.6, 0, 0, 0],
+            throttle: [0, 0, 0, 0, 0.6, 1, 1],
+            steeringRad: [0, 0.1, 0.2, 0.1, 0, 0, 0],
+          },
+          {
+            brake: [0, 1, 0.8, 0.6, 0, 0, 0],
+            throttle: [0, 0, 0.45, 0.7, 0.2, 1, 1],
+            steeringRad: [0, 0.1, -0.1, 0.15, -0.15, 0.1, 0],
+          },
+        ),
+        unsmoothedConfig,
+      ),
+    ).map((finding) => finding.id);
+
+    expect(ids).not.toContain("rushed-brake-to-throttle");
   });
 
   it("fires unused entry width for a left-hand corner when target starts inside and loses speed", () => {
