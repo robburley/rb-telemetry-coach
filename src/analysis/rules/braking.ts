@@ -7,6 +7,7 @@ import {
   formatSpeedDelta,
   makeEvidence,
 } from "../evidence";
+import { BRAKING_SEVERITY } from "./constants/braking";
 import type { RuleDefinition } from "./index";
 
 export const brakingRules: RuleDefinition[] = [
@@ -38,7 +39,7 @@ export function brakingTooEarly(
     why: "You start braking before the reference, which can spend speed before the corner is asking for it.",
     practiceCue: "Move the first brake marker a small step deeper and keep the initial hit smooth.",
     category: "braking",
-    severity: Math.abs(delta) > 20 ? "high" : "medium",
+    severity: Math.abs(delta) > BRAKING_SEVERITY.brakeTimingDeltaM ? "high" : "medium",
     confidence: 0.82,
     evidence: [makeEvidence("Brake start", formatDistanceDelta(delta), "delta", "primary", { deltaM: delta })],
   };
@@ -60,7 +61,7 @@ export function brakingTooLate(
     why: "Your brake point is later than the reference, which can force the rest of the entry to happen in a rush.",
     practiceCue: "Try braking a car-length earlier, then release pressure rather than adding more steering.",
     category: "braking",
-    severity: delta > 20 ? "high" : "medium",
+    severity: delta > BRAKING_SEVERITY.brakeTimingDeltaM ? "high" : "medium",
     confidence: 0.8,
     evidence: [makeEvidence("Brake start", formatDistanceDelta(delta), "delta", "primary", { deltaM: delta })],
   };
@@ -82,7 +83,7 @@ export function holdingBrakeTooLong(
     why: "Your brake phase covers more distance than the reference, so the car stays checked up for longer.",
     practiceCue: "Aim for the same initial brake, then bleed pressure earlier as the car rotates.",
     category: "braking",
-    severity: delta > 22 ? "high" : "medium",
+    severity: delta > BRAKING_SEVERITY.brakeDurationDeltaM ? "high" : "medium",
     confidence: 0.78,
     evidence: [makeEvidence("Brake duration", formatDistanceDelta(delta), "delta", "primary", { deltaM: delta })],
   };
@@ -103,7 +104,7 @@ export function overSlowingEntry(
     why: "Your slowest point is below the reference, so the car has more speed to rebuild on exit.",
     practiceCue: "Release the brake into the apex and let the car roll before asking for exit throttle.",
     category: "braking",
-    severity: speed.minSpeedDeltaKmh < -6 ? "high" : "medium",
+    severity: speed.minSpeedDeltaKmh < BRAKING_SEVERITY.highSpeedLossKmh ? "high" : "medium",
     confidence: 0.86,
     evidence: [
       makeEvidence("Minimum speed", formatSpeedDelta(speed.minSpeedDeltaKmh), "delta", "primary", { deltaKmh: speed.minSpeedDeltaKmh }),
@@ -167,7 +168,11 @@ export function softInitialBrake(
     why: "Your brake pressure takes longer to reach peak than the reference, and the corner costs either braking distance or minimum speed.",
     practiceCue: "Make the first brake squeeze firmer, then release cleanly instead of extending the whole brake phase.",
     category: "braking",
-    severity: rampDelta > 18 || (speed?.minSpeedDeltaKmh ?? 0) < -6 ? "high" : "medium",
+    severity:
+      rampDelta > BRAKING_SEVERITY.brakeRampDeltaM ||
+      (speed?.minSpeedDeltaKmh ?? 0) < BRAKING_SEVERITY.highSpeedLossKmh
+        ? "high"
+        : "medium",
     confidence: 0.68,
     evidence: [
       makeEvidence("Start to peak", formatDistanceDelta(rampDelta), "delta", "primary", { rampDeltaM: rampDelta }),
@@ -206,7 +211,11 @@ export function spikingBrakePressure(
     why: "Your pressure reaches peak much sooner than the reference, and the car then shows speed loss, steering load, or corrections.",
     practiceCue: "Keep the initial hit firm but progressive enough that the platform stays settled as steering begins.",
     category: "braking",
-    severity: Math.abs(rampDelta) > 18 || (steering?.correctionCountDelta ?? 0) > 1 ? "high" : "medium",
+    severity:
+      Math.abs(rampDelta) > BRAKING_SEVERITY.brakeRampDeltaM ||
+      (steering?.correctionCountDelta ?? 0) > BRAKING_SEVERITY.extraCorrectionCountDelta
+        ? "high"
+        : "medium",
     confidence: 0.64,
     evidence: [
       makeEvidence("Start to peak", formatDistanceDelta(rampDelta), "delta", "primary", { rampDeltaM: rampDelta }),
@@ -242,7 +251,7 @@ export function dumpingBrakeRelease(
     why: "Your brake release is shorter than the reference, and the car needs extra steering or corrections afterward.",
     practiceCue: "Bleed the last part of brake pressure out with the steering build instead of dropping it all at once.",
     category: "braking",
-    severity: Math.abs(releaseDelta) > 18 ? "high" : "medium",
+    severity: Math.abs(releaseDelta) > BRAKING_SEVERITY.brakeRampDeltaM ? "high" : "medium",
     confidence: 0.63,
     evidence: [
       makeEvidence("Release distance", formatDistanceDelta(releaseDelta), "delta", "primary", { releaseDeltaM: releaseDelta }),
@@ -279,7 +288,7 @@ export function draggingBrake(
     why: "You carry more brake pressure around the slowest point than the reference, which can hold the car before throttle pickup.",
     practiceCue: "Aim to finish the heavy braking sooner, then keep only the pressure needed for rotation.",
     category: "braking",
-    severity: shape.brakeAroundMinSpeedDelta > 0.3 ? "high" : "medium",
+    severity: shape.brakeAroundMinSpeedDelta > BRAKING_SEVERITY.brakeAroundMinSpeedDelta ? "high" : "medium",
     confidence: 0.66,
     evidence: [
       makeEvidence("Brake near apex", formatPedalPointDelta(shape.brakeAroundMinSpeedDelta), "delta", "primary", {
@@ -319,7 +328,11 @@ export function underBrakingPressure(
     why: "You use less brake pressure than the reference, but still brake longer or arrive with less minimum speed.",
     practiceCue: "Add enough initial pressure to slow the car in the right place, then release rather than dragging the phase out.",
     category: "braking",
-    severity: shape.brakeAreaDelta < -0.2 || (speed?.minSpeedDeltaKmh ?? 0) < -6 ? "high" : "medium",
+    severity:
+      shape.brakeAreaDelta < BRAKING_SEVERITY.brakeAreaLossDelta ||
+      (speed?.minSpeedDeltaKmh ?? 0) < BRAKING_SEVERITY.highSpeedLossKmh
+        ? "high"
+        : "medium",
     confidence: 0.65,
     evidence: [
       makeEvidence("Brake area", formatPedalDelta(shape.brakeAreaDelta), "delta", "primary", {

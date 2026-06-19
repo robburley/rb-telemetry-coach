@@ -1,4 +1,5 @@
 import { formatLateralOffset, formatSpeedDelta, makeEvidence } from "../evidence";
+import { LINE_SEVERITY } from "./constants/line";
 import type { RuleDefinition } from "./index";
 
 export const lineRules: RuleDefinition[] = [
@@ -30,7 +31,7 @@ export function overDrivingEntry(
     why: "You arrive faster but then drop below the reference at minimum speed, which points to asking too much on entry.",
     practiceCue: "Trade a small amount of entry speed for a cleaner brake release and higher roll speed.",
     category: "line",
-    severity: speed.minSpeedDeltaKmh < -6 ? "high" : "medium",
+    severity: speed.minSpeedDeltaKmh < LINE_SEVERITY.highSpeedLossKmh ? "high" : "medium",
     confidence: 0.75,
     evidence: [
       makeEvidence("Entry speed", formatSpeedDelta(speed.entrySpeedDeltaKmh), "delta", "primary", { deltaKmh: speed.entrySpeedDeltaKmh }),
@@ -65,7 +66,7 @@ export function unusedTrackOnEntryRelativeToReference(
     why: "Compared with the reference, you start the corner farther inside and then pay with speed loss or extra steering load.",
     practiceCue: "Open the entry by a small amount so the car has more radius before the apex.",
     category: "line",
-    severity: insideOffset > 1.6 ? "high" : "medium",
+    severity: insideOffset > LINE_SEVERITY.unusedEntryInsideOffsetM ? "high" : "medium",
     confidence: 0.64,
     evidence: [
       makeEvidence("Entry offset", formatLateralOffset(line.entry.averageLateralOffsetM), "delta", "primary", {
@@ -105,7 +106,7 @@ export function missedApexRelativeToReference(
     why: "Compared with the reference, your apex window stays farther outside and the corner also shows speed, steering, or rotation cost.",
     practiceCue: "Aim the release and steering build so the car reaches the same inside reference before opening exit.",
     category: "line",
-    severity: Math.abs(insideOffset) > 1.8 ? "high" : "medium",
+    severity: Math.abs(insideOffset) > LINE_SEVERITY.apexOffsetM ? "high" : "medium",
     confidence: 0.67,
     evidence: [
       makeEvidence("Apex offset", formatLateralOffset(line.apex.averageLateralOffsetM), "delta", "primary", {
@@ -148,7 +149,11 @@ export function pinchedExitRelativeToReference(
     why: "Compared with the reference, you stay farther inside on exit and the car leaves slower or reaches full throttle later.",
     practiceCue: "Let the car release toward the reference exit path as the wheel opens.",
     category: "line",
-    severity: insideOffset > 1.8 || (speed?.exitSpeedDeltaKmh ?? 0) < -6 ? "high" : "medium",
+    severity:
+      insideOffset > LINE_SEVERITY.exitInsideOffsetM ||
+      (speed?.exitSpeedDeltaKmh ?? 0) < LINE_SEVERITY.highSpeedLossKmh
+        ? "high"
+        : "medium",
     confidence: 0.66,
     evidence: [
       makeEvidence("Exit offset", formatLateralOffset(line.exit.averageLateralOffsetM), "delta", "primary", {
@@ -190,7 +195,7 @@ export function wideWithoutBenefit(
     why: "Compared with the reference, your line runs wider but does not produce a minimum-speed or exit-speed benefit.",
     practiceCue: "Use the wider arc only if it lets you carry or build speed; otherwise return toward the reference path.",
     category: "line",
-    severity: outsideOffset > 1.8 ? "high" : "medium",
+    severity: outsideOffset > LINE_SEVERITY.wideApexOffsetM ? "high" : "medium",
     confidence: 0.61,
     evidence: [
       makeEvidence("Apex offset", formatLateralOffset(line.apex.averageLateralOffsetM), "delta", "primary", {

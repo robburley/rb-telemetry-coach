@@ -1,4 +1,5 @@
 import { formatDegreesDelta, formatDistanceDelta, formatHeadingDelta, makeEvidence } from "../evidence";
+import { STEERING_SEVERITY } from "./constants/steering";
 import type { RuleDefinition } from "./index";
 
 export const steeringRules: RuleDefinition[] = [
@@ -23,7 +24,7 @@ export function excessiveSteering(
     why: "You need more wheel than the reference, which usually means the car is being asked to turn after grip is already loaded.",
     practiceCue: "Slow your hands at peak load and let brake release help the nose turn.",
     category: "steering",
-    severity: steering.peakSteeringDeltaDeg > 15 ? "high" : "medium",
+    severity: steering.peakSteeringDeltaDeg > STEERING_SEVERITY.peakSteeringDeltaDeg ? "high" : "medium",
     confidence: 0.74,
     evidence: [makeEvidence("Peak steering", formatDegreesDelta(steering.peakSteeringDeltaDeg), "delta", "primary", { deltaDeg: steering.peakSteeringDeltaDeg })],
   };
@@ -44,7 +45,7 @@ export function lateSteeringUnwind(
     why: "Your steering stays loaded for longer than the reference, delaying how early the car can accept throttle.",
     practiceCue: "As soon as the car points, start opening your hands before asking for full power.",
     category: "steering",
-    severity: delta > 20 ? "high" : "medium",
+    severity: delta > STEERING_SEVERITY.steeringUnwindDeltaM ? "high" : "medium",
     confidence: 0.72,
     evidence: [makeEvidence("Steering unwind", formatDistanceDelta(delta), "delta", "primary", { deltaM: delta })],
   };
@@ -107,7 +108,7 @@ export function underRotatedAtApex(
     why: "Compared with the reference, the car has less heading change around the apex while line or steering evidence also points to unfinished rotation.",
     practiceCue: "Use the brake release and initial steering to finish rotation before committing to the exit.",
     category: "rotation",
-    severity: apexDelta < -8 ? "high" : "medium",
+    severity: apexDelta < STEERING_SEVERITY.underRotationHeadingDeltaDeg ? "high" : "medium",
     confidence: 0.66,
     evidence: [
       makeEvidence("Apex rotation", formatHeadingDelta(apexDelta), "delta", "primary", { headingDeltaDeg: apexDelta }),

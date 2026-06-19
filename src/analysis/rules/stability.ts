@@ -1,4 +1,5 @@
 import { makeEvidence } from "../evidence";
+import { STABILITY_SEVERITY } from "./constants/stability";
 import type { RuleDefinition } from "./index";
 
 export const stabilityRules: RuleDefinition[] = [instabilityCorrection];
@@ -18,7 +19,7 @@ export function instabilityCorrection(
     why: "You add more steering corrections than the reference, so the car is taking extra settling inputs through the slice.",
     practiceCue: "Reduce the first overload: smoother brake release or a later throttle pickup should need fewer corrections.",
     category: "stability",
-    severity: steering.correctionCountDelta > 2 ? "high" : "medium",
+    severity: steering.correctionCountDelta > STABILITY_SEVERITY.correctionCountDelta ? "high" : "medium",
     confidence: 0.7,
     evidence: [
       makeEvidence("Extra corrections", `${steering.correctionCountDelta}`, "comparison", "primary", {
