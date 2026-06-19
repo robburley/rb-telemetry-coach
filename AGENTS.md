@@ -19,8 +19,11 @@ No project toolchain is checked in yet. When adding one, document the canonical 
 - `npm run dev` starts a local development server.
 - `npm test` runs the automated test suite.
 - `npm run build` creates a production build or verifies distributable output.
+- `npm run smoke:ui` starts Vite on `127.0.0.1:5173`, runs the canonical Playwright browser smoke check, writes screenshots to `output/playwright/`, and shuts the server down.
 
 Avoid multiple equivalent commands for the same workflow.
+
+For browser verification, prefer `npm run smoke:ui` before ad hoc Playwright commands. It owns the dev-server lifecycle and avoids spending time on repeated setup.
 
 ## Coding Style & Naming Conventions
 
