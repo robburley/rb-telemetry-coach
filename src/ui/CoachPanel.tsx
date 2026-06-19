@@ -49,6 +49,8 @@ export function CoachPanel({
   const hiddenCount = Math.max(0, findings.length - visibleFindings.length);
   const analyzeDisabled = isAnalyzing || isAnalyzeDisabled;
   const displayedSlice = report?.slice ?? currentSlice;
+  const reportTitle =
+    report && report.status !== "complete" ? "Needs attention" : report ? reportStatusMessage(report) : "Ready";
 
   return (
     <main className="coach-shell">
@@ -88,7 +90,7 @@ export function CoachPanel({
         <div className="findings-header">
           <div>
             <p className="eyebrow">Coaching report</p>
-            <h2>{report ? reportStatusMessage(report) : "Ready"}</h2>
+            <h2>{reportTitle}</h2>
           </div>
           {report?.status === "complete" ? (
             <span className="status-pill">Priority sorted</span>
