@@ -42,8 +42,21 @@ describe("dev UI formatting", () => {
 
     expect(formatSlice(slice)).toBe("3.54% to 12.00%");
     expect(reportStatusMessage(report)).toBe(
-      "Select a shorter slice, up to 15% of the lap.",
+      "Zoom to a shorter slice, up to 15% of the lap.",
     );
     expect(severityLabel("medium")).toBe("Medium severity");
+  });
+
+  it("explains unsupported active-lap counts", () => {
+    const report: AnalysisReport = {
+      status: "unsupported",
+      reason: "active_lap_count",
+      analysisId: "analysis",
+      findings: [],
+    };
+
+    expect(reportStatusMessage(report)).toBe(
+      "The coach can analyze exactly two active laps. Hide laps in Garage 61 until exactly two active laps remain.",
+    );
   });
 });

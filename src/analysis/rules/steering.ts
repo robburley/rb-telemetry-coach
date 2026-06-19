@@ -1,10 +1,11 @@
-import { formatDegreesDelta, formatDistanceDelta, makeEvidence } from "../evidence";
+import { formatDegreesDelta, formatDistanceDelta, formatHeadingDelta, makeEvidence } from "../evidence";
 import type { RuleDefinition } from "./index";
 
 export const steeringRules: RuleDefinition[] = [
   excessiveSteering,
   lateSteeringUnwind,
   poorRotation,
+  underRotatedAtApex,
 ];
 
 export function excessiveSteering(
@@ -74,6 +75,45 @@ export function poorRotation(
     evidence: [
       makeEvidence("Peak steering", formatDegreesDelta(steering.peakSteeringDeltaDeg), "delta", "primary", { deltaDeg: steering.peakSteeringDeltaDeg }),
       makeEvidence("Brake release", formatDistanceDelta(braking?.brakeReleaseDeltaM), "delta", "secondary"),
+    ],
+  };
+}
+
+export function underRotatedAtApex(
+  comparison: Parameters<RuleDefinition>[0],
+): ReturnType<RuleDefinition> {
+  const rotation = comparison.metrics.headingRotation;
+  const steering = comparison.metrics.steering;
+  const line = comparison.metrics.lineUsage;
+  const apexDelta = rotation?.apexHeadingDeltaDeg ?? rotation?.minSpeedHeadingDeltaDeg;
+  const lineOrSteeringSupport =
+    (steering?.peakSteeringDeltaDeg ?? 0) > comparison.config.thresholds.steeringPeakDeltaDeg ||
+    (line !== undefined &&
+      line.cornerDirection !== "ambiguous" &&
+      Math.abs(line.apex.averageLateralOffsetM) > comparison.config.thresholds.lateralOffsetDeltaM);
+  if (
+    !rotation ||
+    apexDelta === undefined ||
+    apexDelta >= -comparison.config.thresholds.headingDeltaDeg ||
+    !lineOrSteeringSupport
+  ) {
+    return undefined;
+  }
+
+  return {
+    id: "under-rotated-at-apex",
+    priority: 65,
+    title: "Get the car rotated by the apex",
+    why: "Compared with the reference, the car has less heading change around the apex while line or steering evidence also points to unfinished rotation.",
+    practiceCue: "Use the brake release and initial steering to finish rotation before committing to the exit.",
+    category: "rotation",
+    severity: apexDelta < -8 ? "high" : "medium",
+    confidence: 0.66,
+    evidence: [
+      makeEvidence("Apex rotation", formatHeadingDelta(apexDelta), "delta", "primary", { headingDeltaDeg: apexDelta }),
+      ...(steering
+        ? [makeEvidence("Peak steering", formatDegreesDelta(steering.peakSteeringDeltaDeg), "delta", "secondary", { deltaDeg: steering.peakSteeringDeltaDeg })]
+        : []),
     ],
   };
 }

@@ -23,6 +23,7 @@ export interface LapSummary {
   sectors?: SectorInfo[];
   canViewTelemetry: boolean;
   haveSamples: boolean;
+  isActive?: boolean;
   clean?: boolean;
 }
 

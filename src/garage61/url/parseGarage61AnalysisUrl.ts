@@ -6,6 +6,7 @@ const GARAGE61_ID_PATTERN = /^[0-9A-HJKMNP-TV-Z]{26}$/i;
 export interface Garage61AnalysisUrlState {
   url: string;
   analysisId?: string;
+  isEligibleAnalysisRoute: boolean;
   zoomRaw?: string;
   zoom: Garage61ZoomParseResult;
 }
@@ -17,9 +18,26 @@ export function parseGarage61AnalysisUrl(input: string | URL): Garage61AnalysisU
   return {
     url: url.href,
     analysisId: findAnalysisId(url),
+    isEligibleAnalysisRoute: isGarage61LapAnalysisRoute(url),
     zoomRaw,
     zoom: parseGarage61ZoomParam(zoomRaw),
   };
+}
+
+export function isGarage61LapAnalysisRoute(input: string | URL): boolean {
+  const url = typeof input === "string" ? new URL(input, "https://garage61.net") : input;
+  const segments = url.pathname.split("/").filter(Boolean);
+
+  if (
+    segments.length < 4 ||
+    segments[0]?.toLowerCase() !== "app" ||
+    segments[1]?.toLowerCase() !== "analysis" ||
+    segments[2]?.toLowerCase() !== "laps"
+  ) {
+    return false;
+  }
+
+  return GARAGE61_ID_PATTERN.test(segments[3].split(";")[0]);
 }
 
 function findAnalysisId(url: URL): string | undefined {

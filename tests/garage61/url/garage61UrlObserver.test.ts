@@ -24,7 +24,7 @@ describe("observeGarage61UrlChanges", () => {
 
   it("observes pushState and replaceState changes once per href change", () => {
     const fakeWindow = createFakeWindow(
-      "https://garage61.net/app/analysis/01KVBECPC8BM15DJ7X80X1RGCT?z=354-1200",
+      "https://garage61.net/app/analysis/laps/01KVBECPC8BM15DJ7X80X1RGCT?z=354-1200",
     );
     const onChange = vi.fn();
 
@@ -36,7 +36,35 @@ describe("observeGarage61UrlChanges", () => {
 
     expect(onChange).toHaveBeenCalledTimes(2);
     expect(onChange.mock.calls[0][0].route.zoomRaw).toBe("500-900");
+    expect(onChange.mock.calls[0][0].route.isEligibleAnalysisRoute).toBe(true);
     expect(onChange.mock.calls[1][0].route.zoomRaw).toBe("600-1000");
+    expect(onChange.mock.calls[1][0].route.isEligibleAnalysisRoute).toBe(true);
+
+    observer.disconnect();
+  });
+
+  it("reports eligibility changes across Garage 61 SPA route transitions", () => {
+    const fakeWindow = createFakeWindow(
+      "https://garage61.net/app/analysis/laps/01KVBECPC8BM15DJ7X80X1RGCT?z=354-1200",
+    );
+    const onChange = vi.fn();
+
+    const observer = observeGarage61UrlChanges(onChange, {
+      window: fakeWindow,
+      emitInitial: true,
+    });
+
+    fakeWindow.history.pushState({}, "", "/app/analysis/01KVBECPC8BM15DJ7X80X1RGCT");
+    fakeWindow.history.pushState({}, "", "/app/analysis/laps/01KVBECPC8BM15DJ7X80X1RGCT?z=500-900");
+
+    expect(onChange).toHaveBeenCalledTimes(3);
+    expect(onChange.mock.calls[0][0].route.isEligibleAnalysisRoute).toBe(true);
+    expect(onChange.mock.calls[1][0].route.isEligibleAnalysisRoute).toBe(false);
+    expect(onChange.mock.calls[2][0].route).toMatchObject({
+      analysisId: "01KVBECPC8BM15DJ7X80X1RGCT",
+      isEligibleAnalysisRoute: true,
+      zoomRaw: "500-900",
+    });
 
     observer.disconnect();
   });

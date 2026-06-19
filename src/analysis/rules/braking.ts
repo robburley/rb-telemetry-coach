@@ -1,4 +1,12 @@
-import { formatDistanceAt, formatDistanceDelta, formatPedalDelta, formatSpeedDelta, makeEvidence } from "../evidence";
+import {
+  formatDistanceAt,
+  formatDistanceDelta,
+  formatDistanceDuration,
+  formatPedalDelta,
+  formatPedalPointDelta,
+  formatSpeedDelta,
+  makeEvidence,
+} from "../evidence";
 import type { RuleDefinition } from "./index";
 
 export const brakingRules: RuleDefinition[] = [
@@ -7,6 +15,11 @@ export const brakingRules: RuleDefinition[] = [
   holdingBrakeTooLong,
   overSlowingEntry,
   insufficientTrailBraking,
+  softInitialBrake,
+  spikingBrakePressure,
+  dumpingBrakeRelease,
+  draggingBrake,
+  underBrakingPressure,
 ];
 
 export function brakingTooEarly(
@@ -126,6 +139,198 @@ export function insufficientTrailBraking(
     evidence: [
       makeEvidence("Brake release", formatDistanceDelta(releaseDelta), "delta", "primary", { deltaM: releaseDelta }),
       makeEvidence("Minimum speed", formatSpeedDelta(speed.minSpeedDeltaKmh), "delta", "secondary", { deltaKmh: speed.minSpeedDeltaKmh }),
+    ],
+  };
+}
+
+export function softInitialBrake(
+  comparison: Parameters<RuleDefinition>[0],
+): ReturnType<RuleDefinition> {
+  const shape = comparison.metrics.brakePressureShape;
+  const speed = comparison.metrics.speed;
+  const rampDelta = shape?.startToPeakDistanceDeltaM;
+  const longerBraking = (comparison.metrics.braking?.brakeDurationDeltaM ?? 0) > comparison.config.thresholds.brakeTimingDeltaM;
+  const speedLoss = speed ? speed.minSpeedDeltaKmh < -comparison.config.thresholds.minSpeedDeltaKmh : false;
+  if (
+    !shape ||
+    rampDelta === undefined ||
+    rampDelta <= comparison.config.thresholds.brakeRampDeltaM ||
+    (!longerBraking && !speedLoss)
+  ) {
+    return undefined;
+  }
+
+  return {
+    id: "soft-initial-brake",
+    priority: 63,
+    title: "Build brake pressure more decisively",
+    why: "Your brake pressure takes longer to reach peak than the reference, and the corner costs either braking distance or minimum speed.",
+    practiceCue: "Make the first brake squeeze firmer, then release cleanly instead of extending the whole brake phase.",
+    category: "braking",
+    severity: rampDelta > 18 || (speed?.minSpeedDeltaKmh ?? 0) < -6 ? "high" : "medium",
+    confidence: 0.68,
+    evidence: [
+      makeEvidence("Start to peak", formatDistanceDelta(rampDelta), "delta", "primary", { rampDeltaM: rampDelta }),
+      ...(speed
+        ? [makeEvidence("Minimum speed", formatSpeedDelta(speed.minSpeedDeltaKmh), "delta", "secondary", { deltaKmh: speed.minSpeedDeltaKmh })]
+        : []),
+    ],
+  };
+}
+
+export function spikingBrakePressure(
+  comparison: Parameters<RuleDefinition>[0],
+): ReturnType<RuleDefinition> {
+  const shape = comparison.metrics.brakePressureShape;
+  const speed = comparison.metrics.speed;
+  const steering = comparison.metrics.steering;
+  const rampDelta = shape?.startToPeakDistanceDeltaM;
+  const unstableOutcome =
+    (speed?.minSpeedDeltaKmh ?? 0) < -comparison.config.thresholds.minSpeedDeltaKmh ||
+    (steering?.peakSteeringDeltaDeg ?? 0) > comparison.config.thresholds.steeringPeakDeltaDeg ||
+    (steering?.correctionCountDelta ?? 0) >= comparison.config.thresholds.correctionCountDelta;
+  if (
+    !shape ||
+    rampDelta === undefined ||
+    rampDelta >= -comparison.config.thresholds.brakeRampDeltaM ||
+    shape.targetPeakBrake < shape.referencePeakBrake - comparison.config.thresholds.pedalDepthDelta ||
+    !unstableOutcome
+  ) {
+    return undefined;
+  }
+
+  return {
+    id: "spiking-brake-pressure",
+    priority: 61,
+    title: "Make the brake hit less abrupt",
+    why: "Your pressure reaches peak much sooner than the reference, and the car then shows speed loss, steering load, or corrections.",
+    practiceCue: "Keep the initial hit firm but progressive enough that the platform stays settled as steering begins.",
+    category: "braking",
+    severity: Math.abs(rampDelta) > 18 || (steering?.correctionCountDelta ?? 0) > 1 ? "high" : "medium",
+    confidence: 0.64,
+    evidence: [
+      makeEvidence("Start to peak", formatDistanceDelta(rampDelta), "delta", "primary", { rampDeltaM: rampDelta }),
+      makeEvidence("Peak brake", formatPedalPointDelta(shape.targetPeakBrake - shape.referencePeakBrake), "delta", "secondary", {
+        peakBrakeDelta: shape.targetPeakBrake - shape.referencePeakBrake,
+      }),
+    ],
+  };
+}
+
+export function dumpingBrakeRelease(
+  comparison: Parameters<RuleDefinition>[0],
+): ReturnType<RuleDefinition> {
+  const shape = comparison.metrics.brakePressureShape;
+  const steering = comparison.metrics.steering;
+  const releaseDelta = shape?.releaseDistanceDeltaM;
+  const rotationOutcome =
+    (steering?.peakSteeringDeltaDeg ?? 0) > comparison.config.thresholds.steeringPeakDeltaDeg ||
+    (steering?.correctionCountDelta ?? 0) >= comparison.config.thresholds.correctionCountDelta;
+  if (
+    !shape ||
+    releaseDelta === undefined ||
+    releaseDelta >= -comparison.config.thresholds.brakeRampDeltaM ||
+    !rotationOutcome
+  ) {
+    return undefined;
+  }
+
+  return {
+    id: "dumping-brake-release",
+    priority: 60,
+    title: "Release brake pressure more progressively",
+    why: "Your brake release is shorter than the reference, and the car needs extra steering or corrections afterward.",
+    practiceCue: "Bleed the last part of brake pressure out with the steering build instead of dropping it all at once.",
+    category: "braking",
+    severity: Math.abs(releaseDelta) > 18 ? "high" : "medium",
+    confidence: 0.63,
+    evidence: [
+      makeEvidence("Release distance", formatDistanceDelta(releaseDelta), "delta", "primary", { releaseDeltaM: releaseDelta }),
+      ...(steering
+        ? [makeEvidence("Peak steering", `${steering.peakSteeringDeltaDeg.toFixed(1)} deg extra`, "delta", "secondary", { deltaDeg: steering.peakSteeringDeltaDeg })]
+        : []),
+    ],
+  };
+}
+
+export function draggingBrake(
+  comparison: Parameters<RuleDefinition>[0],
+): ReturnType<RuleDefinition> {
+  const shape = comparison.metrics.brakePressureShape;
+  const throttle = comparison.metrics.throttle;
+  const releaseDelta = comparison.metrics.braking?.brakeReleaseDeltaM;
+  const delayedThrottle =
+    throttle?.firstThrottleDeltaM !== undefined &&
+    throttle.firstThrottleDeltaM > comparison.config.thresholds.throttleTimingDeltaM;
+  if (
+    !shape ||
+    shape.brakeAroundMinSpeedDelta <= comparison.config.thresholds.pedalDepthDelta ||
+    shape.brakeAreaDelta <= comparison.config.thresholds.brakePressureAreaDelta ||
+    !delayedThrottle &&
+      (releaseDelta === undefined || releaseDelta <= comparison.config.thresholds.brakeTimingDeltaM)
+  ) {
+    return undefined;
+  }
+
+  return {
+    id: "dragging-brake",
+    priority: 62,
+    title: "Let the brake go before the car waits",
+    why: "You carry more brake pressure around the slowest point than the reference, which can hold the car before throttle pickup.",
+    practiceCue: "Aim to finish the heavy braking sooner, then keep only the pressure needed for rotation.",
+    category: "braking",
+    severity: shape.brakeAroundMinSpeedDelta > 0.3 ? "high" : "medium",
+    confidence: 0.66,
+    evidence: [
+      makeEvidence("Brake near apex", formatPedalPointDelta(shape.brakeAroundMinSpeedDelta), "delta", "primary", {
+        brakeAroundMinSpeedDelta: shape.brakeAroundMinSpeedDelta,
+      }),
+      makeEvidence("Brake area", formatPedalDelta(shape.brakeAreaDelta), "delta", "secondary", {
+        brakeAreaDelta: shape.brakeAreaDelta,
+      }),
+      ...(throttle?.firstThrottleDeltaM === undefined
+        ? []
+        : [makeEvidence("First throttle", formatDistanceDelta(throttle.firstThrottleDeltaM), "delta", "secondary", { deltaM: throttle.firstThrottleDeltaM })]),
+    ],
+  };
+}
+
+export function underBrakingPressure(
+  comparison: Parameters<RuleDefinition>[0],
+): ReturnType<RuleDefinition> {
+  const shape = comparison.metrics.brakePressureShape;
+  const speed = comparison.metrics.speed;
+  const braking = comparison.metrics.braking;
+  const pressureLoss =
+    shape !== undefined &&
+    (shape.targetPeakBrake - shape.referencePeakBrake < -comparison.config.thresholds.pedalDepthDelta ||
+      shape.brakeAreaDelta < -comparison.config.thresholds.brakePressureAreaDelta);
+  const poorOutcome =
+    (braking?.brakeDurationDeltaM ?? 0) > comparison.config.thresholds.brakeTimingDeltaM ||
+    (speed?.minSpeedDeltaKmh ?? 0) < -comparison.config.thresholds.minSpeedDeltaKmh;
+  if (!shape || !pressureLoss || !poorOutcome) {
+    return undefined;
+  }
+
+  return {
+    id: "under-braking-pressure",
+    priority: 61,
+    title: "Use enough brake pressure to shorten the entry",
+    why: "You use less brake pressure than the reference, but still brake longer or arrive with less minimum speed.",
+    practiceCue: "Add enough initial pressure to slow the car in the right place, then release rather than dragging the phase out.",
+    category: "braking",
+    severity: shape.brakeAreaDelta < -0.2 || (speed?.minSpeedDeltaKmh ?? 0) < -6 ? "high" : "medium",
+    confidence: 0.65,
+    evidence: [
+      makeEvidence("Brake area", formatPedalDelta(shape.brakeAreaDelta), "delta", "primary", {
+        brakeAreaDelta: shape.brakeAreaDelta,
+      }),
+      makeEvidence("Peak brake", formatPedalPointDelta(shape.targetPeakBrake - shape.referencePeakBrake), "delta", "secondary", {
+        peakBrakeDelta: shape.targetPeakBrake - shape.referencePeakBrake,
+      }),
+      ...(braking?.brakeDurationDeltaM === undefined
+        ? []
+        : [makeEvidence("Brake duration", formatDistanceDuration(braking.brakeDurationDeltaM), "delta", "secondary", { deltaM: braking.brakeDurationDeltaM })]),
     ],
   };
 }

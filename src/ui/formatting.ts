@@ -17,7 +17,7 @@ export function formatLapTime(seconds: number): string {
 
 export function formatSlice(slice: DistanceSlice | undefined): string {
   if (!slice) {
-    return "No slice selected";
+    return "No Garage 61 slice";
   }
 
   const start = (slice.startDistancePct * 100).toFixed(2);
@@ -42,16 +42,19 @@ export function reportStatusMessage(report: AnalysisReport): string {
   }
 
   if (report.reason === "slice_too_large") {
-    return "Select a shorter slice, up to 15% of the lap.";
+    return "Zoom to a shorter slice, up to 15% of the lap.";
   }
   if (report.reason === "slice_too_short") {
-    return "Select a longer slice, at least 0.5% of the lap.";
+    return "Zoom to a longer slice, at least 0.5% of the lap.";
   }
   if (report.reason === "wrapped_slice") {
     return "Wrapped start/finish slices are not supported yet.";
   }
   if (report.reason === "full_lap" || report.reason === "missing_slice") {
-    return "Select a corner or short sector slice before analyzing.";
+    return "Zoom to a corner or short sector before analyzing.";
+  }
+  if (report.reason === "active_lap_count") {
+    return "The coach can analyze exactly two active laps. Hide laps in Garage 61 until exactly two active laps remain.";
   }
 
   return "This slice cannot be analyzed yet.";

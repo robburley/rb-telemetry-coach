@@ -1,14 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { parseGarage61AnalysisUrl } from "../../../src";
+import { isGarage61LapAnalysisRoute, parseGarage61AnalysisUrl } from "../../../src";
 
 describe("parseGarage61AnalysisUrl", () => {
-  it("extracts analysis id and query zoom from Garage 61 analysis routes", () => {
+  it("extracts analysis id and query zoom from legacy Garage 61 analysis routes", () => {
     expect(
       parseGarage61AnalysisUrl(
         "https://garage61.net/app/analysis/01KVBECPC8BM15DJ7X80X1RGCT?z=354-1200",
       ),
     ).toMatchObject({
       analysisId: "01KVBECPC8BM15DJ7X80X1RGCT",
+      isEligibleAnalysisRoute: false,
       zoomRaw: "354-1200",
       zoom: {
         status: "slice",
@@ -27,6 +28,7 @@ describe("parseGarage61AnalysisUrl", () => {
       ),
     ).toMatchObject({
       analysisId: "01KVBECPC8BM15DJ7X80X1RGCT",
+      isEligibleAnalysisRoute: false,
       zoomRaw: "400-900",
       zoom: {
         status: "slice",
@@ -34,27 +36,50 @@ describe("parseGarage61AnalysisUrl", () => {
     });
   });
 
-  it("supports Garage 61 laps analysis route names", () => {
+  it("marks Garage 61 lap analysis routes eligible", () => {
     expect(
       parseGarage61AnalysisUrl(
-        "https://garage61.net/app/analysis/laps/01KV8Y12QEYZF31XCNMAG69JBK;v=driving-style",
+        "https://garage61.net/app/analysis/laps/01KV8Y12QEYZF31XCNMAG69JBK;z=400-900;v=driving-style",
       ),
     ).toMatchObject({
       analysisId: "01KV8Y12QEYZF31XCNMAG69JBK",
+      isEligibleAnalysisRoute: true,
+      zoomRaw: "400-900",
       zoom: {
-        status: "needs_slice",
-        reason: "missing_slice",
+        status: "slice",
       },
     });
+  });
+
+  it("rejects ineligible Garage 61 pages for visible extension UI", () => {
+    expect(
+      isGarage61LapAnalysisRoute(
+        "https://garage61.net/app/analysis/01KVBECPC8BM15DJ7X80X1RGCT",
+      ),
+    ).toBe(false);
+    expect(
+      isGarage61LapAnalysisRoute(
+        "https://garage61.net/app/analyses/01KVBECPC8BM15DJ7X80X1RGCT",
+      ),
+    ).toBe(false);
+    expect(
+      isGarage61LapAnalysisRoute(
+        "https://garage61.net/app/drivers/01KVBECPC8BM15DJ7X80X1RGCT",
+      ),
+    ).toBe(false);
+    expect(isGarage61LapAnalysisRoute("https://garage61.net/app/analysis/laps/not-a-valid-id")).toBe(
+      false,
+    );
   });
 
   it("returns missing slice state when no zoom parameter is present", () => {
     expect(
       parseGarage61AnalysisUrl(
-        "https://garage61.net/app/analysis/01KVBECPC8BM15DJ7X80X1RGCT",
+        "https://garage61.net/app/analysis/laps/01KVBECPC8BM15DJ7X80X1RGCT",
       ),
     ).toMatchObject({
       analysisId: "01KVBECPC8BM15DJ7X80X1RGCT",
+      isEligibleAnalysisRoute: true,
       zoom: {
         status: "needs_slice",
         reason: "missing_slice",

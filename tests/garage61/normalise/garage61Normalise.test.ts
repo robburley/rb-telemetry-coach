@@ -57,6 +57,92 @@ describe("normaliseGarage61Analysis", () => {
       haveSamples: true,
       clean: true,
     });
+    expect(analysis.laps.every((lap) => lap.isActive === undefined)).toBe(true);
+  });
+
+  it("marks Garage 61 laps inactive from explicit lap and group hidden fields", () => {
+    const baseLap = {
+      lap_time: 101,
+      can_view_telemetry: true,
+      have_samples: true,
+      car_info: {
+        id: 145,
+        name: "Toyota GR86",
+      },
+      track_info: {
+        id: 67,
+        name: "Interlagos",
+      },
+    };
+
+    const analysis = normaliseGarage61Analysis({
+      id: "analysis",
+      type: "laps",
+      laps: [
+        {
+          laps: [{ ...baseLap, id: "active" }],
+        },
+        {
+          laps: [{ ...baseLap, id: "lap-hidden", hidden: true }],
+        },
+        {
+          visible: false,
+          laps: [{ ...baseLap, id: "group-hidden" }],
+        },
+      ],
+    });
+
+    expect(analysis.laps.map((lap) => [lap.id, lap.isActive])).toEqual([
+      ["active", undefined],
+      ["lap-hidden", false],
+      ["group-hidden", false],
+    ]);
+  });
+
+  it("marks laps inactive from Garage 61 comparison option arrays", () => {
+    const baseLap = {
+      lap_time: 101,
+      can_view_telemetry: true,
+      have_samples: true,
+      car_info: {
+        id: 145,
+        name: "Toyota GR86",
+      },
+      track_info: {
+        id: 67,
+        name: "Interlagos",
+      },
+    };
+
+    const analysis = normaliseGarage61Analysis({
+      id: "analysis",
+      type: "laps",
+      laps: [
+        {
+          options: { selected: true },
+          laps: [{ ...baseLap, id: "active-reference", lap_time: 100 }],
+        },
+        {
+          options: { enabled: true },
+          laps: [{ ...baseLap, id: "active-target", lap_time: 101 }],
+        },
+        ...Array.from({ length: 6 }, (_, index) => ({
+          options: [{ hidden: true }],
+          laps: [{ ...baseLap, id: `inactive-${index}`, lap_time: 102 + index }],
+        })),
+      ],
+    });
+
+    expect(analysis.laps.map((lap) => [lap.id, lap.isActive])).toEqual([
+      ["active-reference", true],
+      ["active-target", true],
+      ["inactive-0", false],
+      ["inactive-1", false],
+      ["inactive-2", false],
+      ["inactive-3", false],
+      ["inactive-4", false],
+      ["inactive-5", false],
+    ]);
   });
 });
 

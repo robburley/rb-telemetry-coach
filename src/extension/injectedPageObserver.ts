@@ -2,8 +2,13 @@ import {
   observeGarage61PageResponses,
   type Garage61CapturedResponse,
 } from "../garage61/network";
+import {
+  observeGarage61UrlChanges,
+  type Garage61UrlObserverSnapshot,
+} from "../garage61/url";
 
 export const GARAGE61_CAPTURED_RESPONSE_EVENT = "garage61-telemetry-captured-response";
+export const GARAGE61_ROUTE_CHANGED_EVENT = "garage61-telemetry-route-changed";
 const DEBUG_PREFIX = "[Garage61 Telemetry Coach]";
 
 export interface Garage61CapturedResponseWindowMessage {
@@ -11,6 +16,16 @@ export interface Garage61CapturedResponseWindowMessage {
   type: typeof GARAGE61_CAPTURED_RESPONSE_EVENT;
   response: Garage61CapturedResponse;
 }
+
+export interface Garage61RouteChangedWindowMessage {
+  source: "garage61-telemetry-coach";
+  type: typeof GARAGE61_ROUTE_CHANGED_EVENT;
+  snapshot: Garage61UrlObserverSnapshot;
+}
+
+export type Garage61TelemetryCoachWindowMessage =
+  | Garage61CapturedResponseWindowMessage
+  | Garage61RouteChangedWindowMessage;
 
 export function startGarage61InjectedPageObserver(win: Window = window): void {
   const globalKey = "__garage61TelemetryCoachObserver";
@@ -28,7 +43,7 @@ export function startGarage61InjectedPageObserver(win: Window = window): void {
     origin: win.location.origin,
   });
 
-  state[globalKey] = observeGarage61PageResponses({
+  const responseObserver = observeGarage61PageResponses({
     window: win,
     onCapturedResponse(response) {
       console.info(DEBUG_PREFIX, "Posting captured response to content script", {
@@ -46,4 +61,31 @@ export function startGarage61InjectedPageObserver(win: Window = window): void {
       );
     },
   });
+
+  const routeObserver = observeGarage61UrlChanges(
+    (snapshot) => {
+      console.info(DEBUG_PREFIX, "Posting route change to content script", {
+        href: snapshot.href,
+        analysisId: snapshot.route.analysisId,
+        zoomRaw: snapshot.route.zoomRaw,
+        isEligibleAnalysisRoute: snapshot.route.isEligibleAnalysisRoute,
+      });
+      win.postMessage(
+        {
+          source: "garage61-telemetry-coach",
+          type: GARAGE61_ROUTE_CHANGED_EVENT,
+          snapshot,
+        } satisfies Garage61RouteChangedWindowMessage,
+        win.location.origin,
+      );
+    },
+    { window: win },
+  );
+
+  state[globalKey] = {
+    disconnect() {
+      responseObserver.disconnect();
+      routeObserver.disconnect();
+    },
+  };
 }

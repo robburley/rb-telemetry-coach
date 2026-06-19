@@ -25,8 +25,33 @@ export function formatPedalDelta(delta: number): string {
   return `${formatNumber(Math.abs(delta) * 100, 0)}% ${direction}`;
 }
 
+export function formatPedalPointDelta(delta: number): string {
+  const direction = delta >= 0 ? "higher" : "lower";
+  return `${formatNumber(Math.abs(delta) * 100, 0)} pp ${direction}`;
+}
+
+export function formatDistanceDuration(distanceM: number | undefined): string {
+  if (distanceM === undefined) {
+    return "unavailable";
+  }
+  return `${formatNumber(Math.max(0, distanceM), 1)} m`;
+}
+
+export function formatLateralOffset(offsetM: number | undefined): string {
+  if (offsetM === undefined) {
+    return "unavailable";
+  }
+  const side = offsetM >= 0 ? "left" : "right";
+  return `${formatNumber(Math.abs(offsetM), 2)} m ${side}`;
+}
+
 export function formatDegreesDelta(deltaDeg: number): string {
   const direction = deltaDeg >= 0 ? "more" : "less";
+  return `${formatNumber(Math.abs(deltaDeg), 1)} deg ${direction}`;
+}
+
+export function formatHeadingDelta(deltaDeg: number): string {
+  const direction = deltaDeg >= 0 ? "more rotation" : "less rotation";
   return `${formatNumber(Math.abs(deltaDeg), 1)} deg ${direction}`;
 }
 

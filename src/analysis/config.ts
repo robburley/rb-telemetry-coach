@@ -21,6 +21,15 @@ export interface RuleThresholds {
   exitSpeedDeltaKmh: number;
   steeringPeakDeltaDeg: number;
   correctionCountDelta: number;
+  pedalAreaDelta: number;
+  pedalDurationDeltaM: Metres;
+  pedalDepthDelta: number;
+  brakePressureAreaDelta: number;
+  brakeRampDeltaM: Metres;
+  coastingGapDeltaM: Metres;
+  lateralOffsetDeltaM: Metres;
+  headingDeltaDeg: number;
+  ambiguousCornerHeadingDeltaDeg: number;
 }
 
 export const defaultAnalysisConfig: AnalysisConfig = {
@@ -39,5 +48,14 @@ export const defaultAnalysisConfig: AnalysisConfig = {
     exitSpeedDeltaKmh: 3,
     steeringPeakDeltaDeg: 8,
     correctionCountDelta: 1,
+    pedalAreaDelta: 0.08,
+    pedalDurationDeltaM: 8,
+    pedalDepthDelta: 0.15,
+    brakePressureAreaDelta: 0.08,
+    brakeRampDeltaM: 8,
+    coastingGapDeltaM: 10,
+    lateralOffsetDeltaM: 0.75,
+    headingDeltaDeg: 4,
+    ambiguousCornerHeadingDeltaDeg: 2,
   },
 };

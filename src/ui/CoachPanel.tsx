@@ -1,4 +1,9 @@
-import type { AnalysisReport, CoachingFinding, LapSummary } from "../domain/types";
+import type {
+  AnalysisReport,
+  CoachingFinding,
+  DistanceSlice,
+  LapSummary,
+} from "../domain/types";
 import {
   formatLapSummary,
   formatSlice,
@@ -12,14 +17,13 @@ interface CoachPanelProps {
   trackName: string;
   referenceLap?: LapSummary;
   targetLap?: LapSummary;
-  zoomInput: string;
+  currentSlice?: DistanceSlice;
   visibleLimit: number;
   report?: AnalysisReport;
   isAnalyzing: boolean;
   isAnalyzeDisabled?: boolean;
   analyzeDisabledReason?: string;
   error?: string;
-  onZoomInputChange: (value: string) => void;
   onAnalyze: () => void;
   onShowMore: () => void;
 }
@@ -30,14 +34,13 @@ export function CoachPanel({
   trackName,
   referenceLap,
   targetLap,
-  zoomInput,
+  currentSlice,
   visibleLimit,
   report,
   isAnalyzing,
   isAnalyzeDisabled = false,
   analyzeDisabledReason,
   error,
-  onZoomInputChange,
   onAnalyze,
   onShowMore,
 }: CoachPanelProps): JSX.Element {
@@ -45,40 +48,40 @@ export function CoachPanel({
   const visibleFindings = findings.slice(0, visibleLimit);
   const hiddenCount = Math.max(0, findings.length - visibleFindings.length);
   const analyzeDisabled = isAnalyzing || isAnalyzeDisabled;
+  const displayedSlice = report?.slice ?? currentSlice;
 
   return (
     <main className="coach-shell">
       <section className="session-band" aria-label="Current analysis">
-        <div>
-          <p className="eyebrow">{analysisTitle}</p>
+        <div className="session-copy">
+          <p className="eyebrow">Garage 61 telemetry coach</p>
           <h1>{trackName}</h1>
-          <p className="session-subtitle">{carName}</p>
+          <div className="session-meta">
+            <span>{carName}</span>
+            <span>{analysisTitle}</span>
+          </div>
         </div>
-        <div className="lap-pair">
-          <LapBadge label="Reference" value={formatLapSummary(referenceLap)} />
-          <LapBadge label="Target" value={formatLapSummary(targetLap)} />
+        <div className="session-stack">
+          <div className="session-detail-grid">
+            <LapBadge label="Reference" value={formatLapSummary(referenceLap)} />
+            <LapBadge label="Target" value={formatLapSummary(targetLap)} />
+            <p className="slice-readout">
+              <span>Current slice</span>
+              <strong>{formatSlice(displayedSlice)}</strong>
+            </p>
+          </div>
+          <div className="session-actions">
+            <button
+              className="analyze-button"
+              type="button"
+              onClick={onAnalyze}
+              disabled={analyzeDisabled}
+              title={isAnalyzeDisabled ? analyzeDisabledReason : undefined}
+            >
+              {isAnalyzing ? "Analyzing" : isAnalyzeDisabled ? "Waiting" : "Analyze"}
+            </button>
+          </div>
         </div>
-      </section>
-
-      <section className="control-band" aria-label="Slice controls">
-        <label className="zoom-field">
-          <span>Slice z</span>
-          <input
-            value={zoomInput}
-            onChange={(event) => onZoomInputChange(event.target.value)}
-            placeholder="354-1200"
-            spellCheck={false}
-          />
-        </label>
-        <button
-          className="analyze-button"
-          onClick={onAnalyze}
-          disabled={analyzeDisabled}
-          title={isAnalyzeDisabled ? analyzeDisabledReason : undefined}
-        >
-          {isAnalyzing ? "Analyzing" : isAnalyzeDisabled ? "Waiting" : "Analyze"}
-        </button>
-        <p className="slice-readout">{formatSlice(report?.slice)}</p>
       </section>
 
       <section className="findings-band" aria-label="Coaching findings">
@@ -94,7 +97,7 @@ export function CoachPanel({
 
         {error ? <p className="message message-error">{error}</p> : null}
         {!report && !error ? (
-          <p className="message">Enter a short Garage 61 zoom range and run the report.</p>
+          <p className="message">Zoom to a short Garage 61 sector, then run the report.</p>
         ) : null}
         {report && report.status !== "complete" ? (
           <p className="message">{reportStatusMessage(report)}</p>
@@ -110,10 +113,16 @@ export function CoachPanel({
         </div>
 
         {hiddenCount > 0 ? (
-          <button className="show-more-button" onClick={onShowMore}>
+          <button className="show-more-button" type="button" onClick={onShowMore}>
             Show {hiddenCount} more
           </button>
         ) : null}
+
+        <p className="support-link">
+          <a href="https://buymeacoffee.com/burleydev" target="_blank" rel="noreferrer">
+            Support BurleyDev on Buy Me a Coffee
+          </a>
+        </p>
       </section>
     </main>
   );

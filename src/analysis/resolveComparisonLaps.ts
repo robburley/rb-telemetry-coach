@@ -1,21 +1,41 @@
 import type { AnalysisMetadata, ComparisonLapRoles } from "../domain/types";
 
+export const activeLapCountUnsupportedReason = "active_lap_count";
+
+export class ComparisonLapResolutionError extends Error {
+  constructor(
+    message: string,
+    readonly reason: string = activeLapCountUnsupportedReason,
+  ) {
+    super(message);
+    this.name = "ComparisonLapResolutionError";
+  }
+}
+
 export function resolveComparisonLaps(
   analysis: AnalysisMetadata,
 ): ComparisonLapRoles {
-  if (analysis.laps.length !== 2) {
-    throw new Error(
-      `V1 comparison requires exactly two laps, received ${analysis.laps.length}`,
+  const activeLaps = analysis.laps.filter((lap) => lap.isActive !== false);
+
+  if (activeLaps.length !== 2) {
+    throw new ComparisonLapResolutionError(
+      `V1 comparison can analyze exactly two active laps, received ${activeLaps.length}`,
     );
   }
 
-  const [first, second] = analysis.laps;
+  const [first, second] = activeLaps;
   if (!Number.isFinite(first.lapTimeSec) || !Number.isFinite(second.lapTimeSec)) {
-    throw new Error("V1 comparison requires finite lap times for both laps");
+    throw new ComparisonLapResolutionError(
+      "V1 comparison requires finite lap times for both active laps",
+      "non_finite_active_lap_time",
+    );
   }
 
   if (first.lapTimeSec === second.lapTimeSec) {
-    throw new Error("V1 comparison cannot resolve equal lap times");
+    throw new ComparisonLapResolutionError(
+      "V1 comparison cannot resolve equal active lap times",
+      "equal_active_lap_times",
+    );
   }
 
   const reference = first.lapTimeSec < second.lapTimeSec ? first : second;
