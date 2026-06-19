@@ -3,6 +3,7 @@ import {
   compareTelemetry,
   defaultAnalysisConfig,
   distanceBetweenPct,
+  distanceWindowSpeedGainKmh,
   distanceWindowIndexes,
   formatDistanceDuration,
   formatDistanceAt,
@@ -77,7 +78,7 @@ describe("Phase 1 baseline telemetry comparison and reports", () => {
     expect(report.status).toBe("complete");
     expect(report.referenceLapId).toBe(referenceLapId);
     expect(report.targetLapId).toBe(targetLapId);
-    expect(report.allRuleResults).toHaveLength(28);
+    expect(report.allRuleResults).toHaveLength(40);
     expect(report.allRuleResults?.map((result) => result.ruleId)).toEqual([
       "brakingTooEarly",
       "brakingTooLate",
@@ -94,19 +95,31 @@ describe("Phase 1 baseline telemetry comparison and reports", () => {
       "exitHesitation",
       "coastingMidCorner",
       "rushedBrakeToThrottle",
+      "throttleBeforeSteeringUnwind",
+      "throttleReappliedWhileBraking",
+      "exitAccelerationDeficit",
       "unnecessaryThrottleLift",
       "deepThrottleLift",
       "longThrottleLift",
       "excessiveSteering",
+      "tooMuchSteeringWhileBraking",
       "lateSteeringUnwind",
       "poorRotation",
       "underRotatedAtApex",
+      "delayedRotation",
+      "minimumSpeedTooEarlyOrLate",
       "overDrivingEntry",
       "unusedTrackOnEntryRelativeToReference",
       "missedApexRelativeToReference",
+      "lateApex",
+      "earlyApexPinchedExit",
       "pinchedExitRelativeToReference",
+      "pathDeviationHotspot",
       "wideWithoutBenefit",
       "instabilityCorrection",
+      "wrongGearOnExit",
+      "overRevvingWithoutSpeedGain",
+      "shortShiftCostingExit",
     ]);
     expect(report.findings.length).toBeGreaterThan(0);
     expect(report.findings.map((finding) => finding.priority)).toEqual(
@@ -140,7 +153,7 @@ describe("Phase 1 baseline telemetry comparison and reports", () => {
     });
 
     expect(report.status).toBe("complete");
-    expect(report.allRuleResults).toHaveLength(28);
+    expect(report.allRuleResults).toHaveLength(40);
     expect(report.findings.length).toBeGreaterThan(0);
     expect(report.findings.map((finding) => finding.priority)).toEqual(
       [...report.findings.map((finding) => finding.priority)].sort((a, b) => b - a),
@@ -260,6 +273,8 @@ describe("Phase 1 baseline telemetry comparison and reports", () => {
     expect(ids).not.toContain("exit-hesitation");
     expect(ids).not.toContain("coasting-mid-corner");
     expect(ids).not.toContain("rushed-brake-to-throttle");
+    expect(ids).not.toContain("throttle-before-steering-unwind");
+    expect(ids).not.toContain("throttle-reapplied-while-braking");
     expect(ids).not.toContain("unnecessary-throttle-lift");
     expect(ids).not.toContain("deep-throttle-lift");
     expect(ids).not.toContain("long-throttle-lift");
@@ -303,6 +318,7 @@ describe("Phase 1 baseline telemetry comparison and reports", () => {
     expect(ids).not.toContain("excessive-steering");
     expect(ids).not.toContain("late-steering-unwind");
     expect(ids).not.toContain("poor-rotation");
+    expect(ids).not.toContain("too-much-steering-while-braking");
     expect(ids).not.toContain("instability-correction");
   });
 
@@ -397,7 +413,7 @@ describe("Phase 2 derived metric foundations", () => {
         exit: expect.objectContaining({ averageLateralOffsetM: expect.any(Number) }),
       }),
     );
-    expect(runDeterministicRules(comparison)).toHaveLength(28);
+    expect(runDeterministicRules(comparison)).toHaveLength(40);
   });
 
   it("leaves new optional metric sections undefined when their channels are missing", () => {
@@ -440,6 +456,14 @@ describe("Phase 2 derived metric foundations", () => {
     expect(distanceWindowIndexes(distancePct, 0.2, 0.3)).toBeUndefined();
     expect(distanceBetweenPct(0.1, 0.106, 5000)).toBeCloseTo(30);
     expect(distanceBetweenPct(0.1, 0.106, undefined)).toBeUndefined();
+    expect(distanceWindowSpeedGainKmh(compareTelemetry(makeContext(), unsmoothedConfig).reference, 0.104, 0.112)).toBeCloseTo(10.8);
+    expect(
+      distanceWindowSpeedGainKmh(
+        compareTelemetry(makeContext({ referenceChannels: { speedMs: undefined } }), unsmoothedConfig).reference,
+        0.104,
+        0.112,
+      ),
+    ).toBeUndefined();
     expect(normalizedPedalArea(pedal, distancePct, 5000)).toBeGreaterThan(0);
     expect(normalizedPedalArea(Float32Array.from([0, 0.5, 1]), Float64Array.from([0, 0.5, 1]), undefined)).toBe(0.5);
     expect(normalizedPedalArea(new Float32Array(), new Float64Array(), 5000)).toBe(0);
@@ -473,6 +497,140 @@ describe("Phase 2 derived metric foundations", () => {
     expect(comparison.metrics.headingRotation?.referenceHeadingChangeDeg).toBe(0);
     expect(comparison.metrics.lineUsage?.cornerDirection).toBe("ambiguous");
     expect(Number.isFinite(comparison.metrics.lineUsage?.averageLateralOffsetM)).toBe(true);
+  });
+
+  it("computes Phase 1 foundations for gearing, apex timing, speed gain, steering under brake, and throttle rise under brake", () => {
+    const comparison = compareTelemetry(
+      replaceChannels(
+        makeContext(),
+        {
+          brake: [0, 1, 0.8, 0.4, 0, 0, 0],
+          throttle: [0, 0, 0, 0.2, 0.7, 1, 1],
+          steeringRad: [0, 0.1, 0.2, 0.1, 0, 0, 0],
+          speedMs: [24, 22, 20, 21, 22, 23, 24],
+          gear: [3, 3, 3, 3, 4, 4, 4],
+          rpm: [5000, 5200, 5400, 5600, 5800, 6000, 6200],
+        },
+        {
+          brake: [0, 1, 0.8, 0.6, 0, 0, 0],
+          throttle: [0, 0, 0.2, 0.45, 0.2, 1, 1],
+          steeringRad: [0, 0.25, 0.45, 0.3, 0, 0, 0],
+          speedMs: [24, 23, 21, 20, 20.5, 21, 22],
+          gear: [3, 3, 4, 4, 4, 4, 4],
+          rpm: [5200, 5400, 5600, 5800, 6000, 6200, 6400],
+        },
+      ),
+      unsmoothedConfig,
+    );
+
+    expect(comparison.metrics.gearRpm).toEqual(
+      expect.objectContaining({
+        referenceExitGear: 4,
+        targetExitGear: 4,
+        referenceExitRpm: 6200,
+        targetExitRpm: 6400,
+        averageRpmDelta: expect.closeTo(200),
+        averageGearDelta: expect.any(Number),
+      }),
+    );
+    expect(comparison.metrics.apex).toEqual(
+      expect.objectContaining({
+        referenceSource: "min-speed",
+        targetSource: "min-speed",
+        distanceDeltaM: expect.closeTo(10),
+      }),
+    );
+    expect(comparison.metrics.speed?.minSpeedDistanceDeltaM).toBeCloseTo(10);
+    expect(comparison.metrics.speedShape).toEqual(
+      expect.objectContaining({
+        referenceMinSpeedToExitGainKmh: expect.closeTo(14.4),
+        targetMinSpeedToExitGainKmh: expect.closeTo(7.2),
+        minSpeedToExitGainDeltaKmh: expect.closeTo(-7.2),
+      }),
+    );
+    expect(comparison.metrics.pedalCoordination).toEqual(
+      expect.objectContaining({
+        averageSteeringWhileBrakingDeltaDeg: expect.any(Number),
+        peakSteeringWhileBrakingDeltaDeg: expect.any(Number),
+        targetThrottleRiseWhileBraking: expect.objectContaining({
+          rise: expect.closeTo(0.45),
+          averageBrake: expect.any(Number),
+          peakBrake: expect.any(Number),
+        }),
+      }),
+    );
+    expect(runDeterministicRules(comparison)).toHaveLength(40);
+  });
+
+  it("keeps throttle-rise-under-brake distinct from throttle carried into brake entry and dropped while braking", () => {
+    const dropOnly = compareTelemetry(
+      replaceChannels(
+        makeContext(),
+        {
+          brake: [0, 1, 0.8, 0.4, 0, 0, 0],
+          throttle: [0, 0, 0, 0.2, 0.7, 1, 1],
+        },
+        {
+          brake: [0, 1, 0.8, 0.4, 0, 0, 0],
+          throttle: [0.6, 0.6, 0.2, 0, 0, 1, 1],
+        },
+      ),
+      unsmoothedConfig,
+    );
+    const riseOnly = compareTelemetry(
+      replaceChannels(
+        makeContext(),
+        {
+          brake: [0, 1, 0.8, 0.4, 0, 0, 0],
+          throttle: [0, 0, 0, 0.2, 0.7, 1, 1],
+        },
+        {
+          brake: [0, 1, 0.8, 0.4, 0, 0, 0],
+          throttle: [0, 0, 0.2, 0.5, 0, 1, 1],
+        },
+      ),
+      unsmoothedConfig,
+    );
+
+    expect(dropOnly.metrics.brakeToThrottleTransition?.targetThrottleDropWhileBraking).toBeGreaterThan(0);
+    expect(dropOnly.metrics.pedalCoordination?.targetThrottleRiseWhileBraking).toBeUndefined();
+    expect(riseOnly.metrics.brakeToThrottleTransition?.targetThrottleDropWhileBraking).toBeUndefined();
+    expect(riseOnly.metrics.pedalCoordination?.targetThrottleRiseWhileBraking?.rise).toBeGreaterThan(0);
+  });
+
+  it("degrades new metric sections cleanly for missing channels, short slices, and no-op baselines", () => {
+    const missing = compareTelemetry(
+      makeContext({
+        referenceChannels: {
+          speedMs: undefined,
+          brake: undefined,
+          throttle: undefined,
+          steeringRad: undefined,
+          gear: undefined,
+          rpm: undefined,
+        },
+        targetChannels: {
+          speedMs: undefined,
+          brake: undefined,
+          throttle: undefined,
+          steeringRad: undefined,
+          gear: undefined,
+          rpm: undefined,
+        },
+      }),
+      unsmoothedConfig,
+    );
+    const short = compareTelemetry(makeShortContext(), unsmoothedConfig);
+    const quiet = compareTelemetry(makeContext(), unsmoothedConfig);
+
+    expect(missing.metrics.gearRpm).toBeUndefined();
+    expect(missing.metrics.speedShape).toBeUndefined();
+    expect(missing.metrics.pedalCoordination).toBeUndefined();
+    expect(short.metrics.speedShape).toBeDefined();
+    expect(short.metrics.pedalCoordination).toBeUndefined();
+    expect(quiet.metrics.speedShape?.minSpeedToExitGainDeltaKmh).toBeCloseTo(0);
+    expect(quiet.metrics.apex?.distanceDeltaM).toBeCloseTo(0);
+    expect(quiet.metrics.pedalCoordination?.throttleRiseWhileBrakingDelta).toBeCloseTo(0);
   });
 });
 
@@ -758,6 +916,173 @@ describe("Phase 3 throttle lift quality", () => {
     expect(findings.find((finding) => finding.id === "deep-throttle-lift")?.possibleEffectFindingIds).toContain("instability-correction");
     expect(findings.find((finding) => finding.id === "long-throttle-lift")?.possibleEffectFindingIds).toContain("exit-hesitation");
     expect(findings.find((finding) => finding.id === "late-steering-unwind")?.possibleEffectFindingIds).toContain("unnecessary-throttle-lift");
+  });
+});
+
+describe("Phase 2 gearing rules", () => {
+  it("fires wrong gear on exit when gear choice differs and exit evidence supports a cost", () => {
+    const finding = findingsFor(
+      compareTelemetry(
+        replaceChannels(
+          makeContext(),
+          {
+            gear: [3, 3, 3, 3, 4, 4, 4],
+            rpm: [5000, 5200, 5400, 5600, 5800, 6000, 6200],
+            speedMs: [22, 21, 20, 21, 22, 23, 24],
+            throttle: [0, 0.2, 0.6, 1, 1, 1, 1],
+          },
+          {
+            gear: [3, 3, 4, 4, 5, 5, 5],
+            rpm: [4800, 4900, 5000, 5100, 5200, 5300, 5400],
+            speedMs: [22, 21, 20, 20.5, 21, 21.5, 22],
+            throttle: [0, 0, 0.1, 0.4, 0.7, 1, 1],
+          },
+        ),
+        unsmoothedConfig,
+      ),
+    ).find((candidate) => candidate.id === "wrong-gear-on-exit");
+
+    expect(finding).toEqual(
+      expect.objectContaining({
+        category: "gearing",
+        confidence: 0.63,
+        severity: "high",
+      }),
+    );
+    expect(finding?.evidence[0]).toEqual(
+      expect.objectContaining({
+        label: "Exit gear",
+        raw: expect.objectContaining({ exitGearDelta: expect.any(Number) }),
+      }),
+    );
+  });
+
+  it("fires over-revving without speed gain for higher RPM that does not improve pace", () => {
+    const finding = findingsFor(
+      compareTelemetry(
+        replaceChannels(
+          makeContext(),
+          {
+            rpm: [5000, 5200, 5400, 5600, 5800, 6000, 6200],
+            speedMs: [22, 22, 22, 22, 23, 24, 25],
+          },
+          {
+            rpm: [6100, 6300, 6500, 6700, 6900, 7100, 7300],
+            speedMs: [22, 22, 22, 22, 23, 24, 25],
+          },
+        ),
+        unsmoothedConfig,
+      ),
+    ).find((candidate) => candidate.id === "over-revving-without-speed-gain");
+
+    expect(finding).toEqual(
+      expect.objectContaining({
+        id: "over-revving-without-speed-gain",
+        category: "gearing",
+        confidence: 0.6,
+      }),
+    );
+    expect(finding?.evidence[0]).toEqual(
+      expect.objectContaining({
+        label: "RPM delta",
+        raw: expect.objectContaining({ rpmDelta: expect.any(Number) }),
+      }),
+    );
+  });
+
+  it("fires short shift costing exit when lower RPM or taller gear weakens exit acceleration", () => {
+    const finding = findingsFor(
+      compareTelemetry(
+        replaceChannels(
+          makeContext(),
+          {
+            gear: [3, 3, 3, 3, 3, 3, 3],
+            rpm: [5400, 5600, 5800, 6000, 6200, 6400, 6600],
+            speedMs: [24, 22, 20, 20, 22, 24, 27],
+          },
+          {
+            gear: [3, 4, 4, 4, 4, 4, 4],
+            rpm: [4500, 4600, 4700, 4800, 4900, 5000, 5100],
+            speedMs: [24, 22, 20, 20, 20.5, 21.5, 23],
+          },
+        ),
+        unsmoothedConfig,
+      ),
+    ).find((candidate) => candidate.id === "short-shift-costing-exit");
+
+    expect(finding).toEqual(
+      expect.objectContaining({
+        id: "short-shift-costing-exit",
+        category: "gearing",
+        confidence: 0.62,
+        severity: "high",
+      }),
+    );
+    expect(finding?.evidence).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          label: "Exit RPM",
+          raw: expect.objectContaining({ rpmDelta: expect.any(Number) }),
+        }),
+        expect.objectContaining({
+          label: "Exit acceleration",
+          raw: expect.objectContaining({ minSpeedToExitGainDeltaKmh: expect.any(Number) }),
+        }),
+      ]),
+    );
+  });
+
+  it("keeps gearing rules quiet for missing data, harmless strategy differences, and matched reference strategy", () => {
+    const missingIds = findingsFor(
+      compareTelemetry(
+        makeContext({
+          referenceChannels: { gear: undefined, rpm: undefined },
+          targetChannels: { gear: undefined, rpm: undefined },
+        }),
+        unsmoothedConfig,
+      ),
+    ).map((finding) => finding.id);
+    const harmlessIds = findingsFor(
+      compareTelemetry(
+        replaceChannels(
+          makeContext(),
+          {
+            gear: [3, 3, 3, 3, 4, 4, 4],
+            rpm: [5000, 5200, 5400, 5600, 5800, 6000, 6200],
+            speedMs: [22, 21, 20, 21, 22, 23, 24],
+          },
+          {
+            gear: [3, 3, 4, 4, 5, 5, 5],
+            rpm: [4800, 4900, 5000, 5100, 5200, 5300, 5400],
+            speedMs: [22, 21, 20, 21, 23, 24, 26],
+          },
+        ),
+        unsmoothedConfig,
+      ),
+    ).map((finding) => finding.id);
+    const matchedStrategyIds = findingsFor(
+      compareTelemetry(
+        replaceChannels(
+          makeContext(),
+          {
+            gear: [4, 4, 4, 4, 5, 5, 5],
+            rpm: [6100, 6300, 6500, 6700, 6900, 7100, 7300],
+          },
+          {
+            gear: [4, 4, 4, 4, 5, 5, 5],
+            rpm: [6100, 6300, 6500, 6700, 6900, 7100, 7300],
+          },
+        ),
+        unsmoothedConfig,
+      ),
+    ).map((finding) => finding.id);
+    const gearingIds = ["wrong-gear-on-exit", "over-revving-without-speed-gain", "short-shift-costing-exit"];
+
+    for (const id of gearingIds) {
+      expect(missingIds).not.toContain(id);
+      expect(harmlessIds).not.toContain(id);
+      expect(matchedStrategyIds).not.toContain(id);
+    }
   });
 });
 
@@ -1115,6 +1440,172 @@ describe("Phase 6 transition, line, and rotation rules", () => {
     expect(ids).not.toContain("rushed-brake-to-throttle");
   });
 
+  it("fires too much steering while braking when brake-phase steering load has a poor outcome", () => {
+    const finding = findingsFor(
+      compareTelemetry(
+        replaceChannels(
+          makeContext(),
+          {
+            brake: [0, 1, 0.8, 0.2, 0, 0, 0],
+            steeringRad: [0, 0.05, 0.1, 0.08, 0, 0, 0],
+            speedMs: [24, 22, 20, 21, 22, 23, 24],
+          },
+          {
+            brake: [0, 1, 0.8, 0.4, 0, 0, 0],
+            steeringRad: [0, 0.25, 0.45, 0.35, 0, 0, 0],
+            speedMs: [24, 21, 18, 19, 20, 21, 23],
+          },
+        ),
+        unsmoothedConfig,
+      ),
+    ).find((candidate) => candidate.id === "too-much-steering-while-braking");
+
+    expect(finding).toEqual(
+      expect.objectContaining({
+        category: "steering",
+        confidence: 0.68,
+        evidence: expect.arrayContaining([
+          expect.objectContaining({
+            label: "Steering while braking",
+            raw: expect.objectContaining({ peakSteeringWhileBrakingDeltaDeg: expect.any(Number) }),
+          }),
+        ]),
+      }),
+    );
+  });
+
+  it("fires throttle before steering unwind when early throttle is followed by exit cost", () => {
+    const finding = findingsFor(
+      compareTelemetry(
+        replaceChannels(
+          makeContext(),
+          {
+            throttle: [0, 0, 0, 0, 0.4, 1, 1],
+            steeringRad: [0, 0.4, 0.2, 0.05, 0, 0, 0],
+            speedMs: [24, 22, 20, 21, 22, 23, 24],
+          },
+          {
+            throttle: [0, 0.4, 0.1, 0.6, 1, 1, 1],
+            steeringRad: [0, 0.4, 0.35, 0.3, 0.22, 0.1, 0],
+            speedMs: [24, 22, 20, 20, 20, 21, 22],
+          },
+        ),
+        unsmoothedConfig,
+      ),
+    ).find((candidate) => candidate.id === "throttle-before-steering-unwind");
+
+    expect(finding).toEqual(
+      expect.objectContaining({
+        category: "throttle",
+        confidence: 0.7,
+        evidence: expect.arrayContaining([
+          expect.objectContaining({
+            label: "Throttle before unwind",
+            raw: expect.objectContaining({ firstThrottleDeltaM: expect.any(Number) }),
+          }),
+        ]),
+      }),
+    );
+  });
+
+  it("fires throttle reapplied while braking only for throttle rising after brake is active", () => {
+    const finding = findingsFor(
+      compareTelemetry(
+        replaceChannels(
+          makeContext(),
+          {
+            brake: [0, 1, 0.8, 0.4, 0, 0, 0],
+            throttle: [0, 0, 0, 0, 0.6, 1, 1],
+            steeringRad: [0, 0.1, 0.2, 0.1, 0, 0, 0],
+            speedMs: [24, 22, 20, 21, 22, 23, 24],
+          },
+          {
+            brake: [0, 1, 0.8, 0.6, 0, 0, 0],
+            throttle: [0, 0, 0.45, 0.7, 0.2, 1, 1],
+            steeringRad: [0, 0.1, -0.1, 0.15, -0.15, 0.1, 0],
+            speedMs: [24, 22, 20, 20, 20, 21, 22],
+          },
+        ),
+        unsmoothedConfig,
+      ),
+    ).find((candidate) => candidate.id === "throttle-reapplied-while-braking");
+
+    expect(finding).toEqual(
+      expect.objectContaining({
+        category: "throttle",
+        confidence: 0.69,
+        evidence: expect.arrayContaining([
+          expect.objectContaining({
+            label: "Throttle rise while braking",
+            raw: expect.objectContaining({
+              throttleRise: expect.any(Number),
+              throttleRiseWhileBrakingDelta: expect.any(Number),
+            }),
+          }),
+          expect.objectContaining({
+            label: "Brake during rise",
+            raw: expect.objectContaining({ peakBrake: expect.any(Number) }),
+          }),
+          expect.objectContaining({
+            label: "Overlap distance",
+            raw: expect.objectContaining({ overlapDistanceM: expect.any(Number) }),
+          }),
+        ]),
+      }),
+    );
+  });
+
+  it("does not fire throttle reapplied while braking for throttle carried into brake entry and dropped", () => {
+    const ids = findingsFor(
+      compareTelemetry(
+        replaceChannels(
+          makeContext(),
+          {
+            brake: [0, 1, 0.3, 0, 0, 0, 0],
+            throttle: [0, 0, 0.2, 0.6, 1, 1, 1],
+            steeringRad: [0, 0.1, 0.2, 0.1, 0, 0, 0],
+          },
+          {
+            brake: [0, 1, 0.8, 0.6, 0, 0, 0],
+            throttle: [0, 0.8, 0.45, 0.2, 0.6, 1, 1],
+            steeringRad: [0, 0.1, -0.1, 0.15, -0.15, 0.1, 0],
+          },
+        ),
+        unsmoothedConfig,
+      ),
+    ).map((finding) => finding.id);
+
+    expect(ids).toContain("rushed-brake-to-throttle");
+    expect(ids).not.toContain("throttle-reapplied-while-braking");
+  });
+
+  it("keeps coordination rules quiet when overlap exists without a bad outcome", () => {
+    const ids = findingsFor(
+      compareTelemetry(
+        replaceChannels(
+          makeContext(),
+          {
+            brake: [0, 1, 0.8, 0.4, 0, 0, 0],
+            throttle: [0, 0, 0, 0, 0.6, 1, 1],
+            steeringRad: [0, 0.2, 0.25, 0.2, 0.05, 0, 0],
+            speedMs: [24, 22, 20, 21, 22, 23, 24],
+          },
+          {
+            brake: [0, 1, 0.8, 0.4, 0, 0, 0],
+            throttle: [0, 0, 0.25, 0.45, 0.6, 1, 1],
+            steeringRad: [0, 0.22, 0.27, 0.22, 0.05, 0, 0],
+            speedMs: [24, 22, 20, 21, 22, 23, 24],
+          },
+        ),
+        unsmoothedConfig,
+      ),
+    ).map((finding) => finding.id);
+
+    expect(ids).not.toContain("too-much-steering-while-braking");
+    expect(ids).not.toContain("throttle-before-steering-unwind");
+    expect(ids).not.toContain("throttle-reapplied-while-braking");
+  });
+
   it("fires unused entry width for a left-hand corner when target starts inside and loses speed", () => {
     const referencePath = localPathToLatLon([0, 10, 20, 30, 40, 50, 60], [0, 0, 0, 0, 0, 0, 0]);
     const targetPath = localPathToLatLon([0, 10, 20, 30, 40, 50, 60], [2, 2, 1, 0, 0, 0, 0]);
@@ -1297,6 +1788,300 @@ describe("Phase 6 transition, line, and rotation rules", () => {
     );
   });
 
+  it("fires late apex when apex evidence arrives later and exit suffers", () => {
+    const finding = findingsFor(
+      compareTelemetry(
+        replaceChannels(
+          makeContext(),
+          {
+            speedMs: [24, 22, 18, 20, 22, 23, 24],
+            headingRad: [0, 0.03, 0.06, 0.09, 0.12, 0.15, 0.18],
+          },
+          {
+            speedMs: [24, 23, 22, 20, 17, 20, 22],
+            headingRad: [0, 0.03, 0.06, 0.09, 0.12, 0.15, 0.18],
+          },
+        ),
+        unsmoothedConfig,
+      ),
+    ).find((candidate) => candidate.id === "late-apex");
+
+    expect(finding).toEqual(
+      expect.objectContaining({
+        category: "line",
+        confidence: 0.64,
+        evidence: expect.arrayContaining([
+          expect.objectContaining({
+            label: "Apex timing",
+            raw: expect.objectContaining({ apexDistanceDeltaM: expect.any(Number) }),
+          }),
+        ]),
+      }),
+    );
+  });
+
+  it("fires early apex pinched exit when apex evidence arrives early and exit stays tight", () => {
+    const referencePath = localPathToLatLon([0, 10, 20, 30, 40, 50, 60], [0, 0, 0, 0, 0, 0, 0]);
+    const targetPath = localPathToLatLon([0, 10, 20, 30, 40, 50, 60], [0, 0, 0, 0, 1, 2, 2]);
+    const finding = findingsFor(
+      compareTelemetry(
+        replaceChannels(
+          makeContext(),
+          {
+            latitude: referencePath.latitude,
+            longitude: referencePath.longitude,
+            speedMs: [24, 23, 22, 18, 20, 22, 24],
+            headingRad: [0, 0.03, 0.06, 0.09, 0.12, 0.15, 0.18],
+          },
+          {
+            latitude: targetPath.latitude,
+            longitude: targetPath.longitude,
+            speedMs: [24, 17, 20, 21, 21, 21, 21],
+            headingRad: [0, 0.03, 0.06, 0.09, 0.12, 0.15, 0.18],
+          },
+        ),
+        unsmoothedConfig,
+      ),
+    ).find((candidate) => candidate.id === "early-apex-pinched-exit");
+
+    expect(finding).toEqual(
+      expect.objectContaining({
+        category: "line",
+        evidence: expect.arrayContaining([
+          expect.objectContaining({
+            label: "Apex timing",
+            raw: expect.objectContaining({ apexDistanceDeltaM: expect.any(Number) }),
+          }),
+          expect.objectContaining({
+            label: "Exit offset",
+            raw: expect.objectContaining({ lateralOffsetM: expect.any(Number) }),
+          }),
+        ]),
+      }),
+    );
+  });
+
+  it("fires delayed rotation when comparable heading arrives later without relying on under-rotation", () => {
+    const finding = findingsFor(
+      compareTelemetry(
+        replaceChannels(
+          makeContext(),
+          {
+            headingRad: [0, 0.05, 0.1, 0.15, 0.18, 0.2, 0.22],
+            steeringRad: [0, 0.3, 0.1, 0, 0, 0, 0],
+            speedMs: [24, 22, 20, 18, 20, 22, 24],
+          },
+          {
+            headingRad: [0, 0.01, 0.03, 0.06, 0.12, 0.18, 0.22],
+            steeringRad: [0, 0.3, 0.25, 0.2, 0.15, 0.05, 0],
+            speedMs: [24, 22, 20, 18, 20, 21, 22],
+          },
+        ),
+        unsmoothedConfig,
+      ),
+    );
+    const ids = finding.map((candidate) => candidate.id);
+    const delayed = finding.find((candidate) => candidate.id === "delayed-rotation");
+
+    expect(ids).not.toContain("under-rotated-at-apex");
+    expect(delayed).toEqual(
+      expect.objectContaining({
+        category: "rotation",
+        evidence: expect.arrayContaining([
+          expect.objectContaining({
+            label: "Rotation timing",
+            raw: expect.objectContaining({ rotationTimingDeltaM: expect.any(Number) }),
+          }),
+        ]),
+      }),
+    );
+  });
+
+  it("fires minimum-speed timing for early over-slowing and late corner drag", () => {
+    const early = findingsFor(
+      compareTelemetry(
+        replaceChannels(
+          makeContext(),
+          { speedMs: [24, 23, 22, 18, 20, 22, 24] },
+          { speedMs: [24, 17, 20, 21, 22, 23, 24] },
+        ),
+        unsmoothedConfig,
+      ),
+    ).find((candidate) => candidate.id === "minimum-speed-too-early-or-late");
+    const late = findingsFor(
+      compareTelemetry(
+        replaceChannels(
+          makeContext(),
+          { speedMs: [24, 22, 18, 20, 22, 24, 26] },
+          { speedMs: [24, 23, 22, 20, 17, 19, 21] },
+        ),
+        unsmoothedConfig,
+      ),
+    ).find((candidate) => candidate.id === "minimum-speed-too-early-or-late");
+
+    expect(early).toEqual(
+      expect.objectContaining({
+        title: "Avoid reaching minimum speed too early",
+        evidence: expect.arrayContaining([
+          expect.objectContaining({
+            label: "Minimum-speed location",
+            raw: expect.objectContaining({ minSpeedDistanceDeltaM: expect.any(Number) }),
+          }),
+        ]),
+      }),
+    );
+    expect(late).toEqual(
+      expect.objectContaining({
+        title: "Finish the slowest point sooner",
+        evidence: expect.arrayContaining([
+          expect.objectContaining({
+            label: "Minimum-speed location",
+            raw: expect.objectContaining({ minSpeedDistanceDeltaM: expect.any(Number) }),
+          }),
+        ]),
+      }),
+    );
+  });
+
+  it("fires path deviation hotspot when a GPS line difference has speed cost", () => {
+    const referencePath = localPathToLatLon([0, 10, 20, 30, 40, 50, 60], [0, 0, 0, 0, 0, 0, 0]);
+    const targetPath = localPathToLatLon([0, 10, 20, 30, 40, 50, 60], [0, 0, 1, 3, 3, 2, 2]);
+    const finding = findingsFor(
+      compareTelemetry(
+        replaceChannels(
+          makeContext(),
+          {
+            latitude: referencePath.latitude,
+            longitude: referencePath.longitude,
+            headingRad: [0, 0.02, 0.04, 0.06, 0.08, 0.1, 0.12],
+            speedMs: [24, 22, 20, 21, 22, 23, 24],
+          },
+          {
+            latitude: targetPath.latitude,
+            longitude: targetPath.longitude,
+            headingRad: [0, 0.02, 0.04, 0.06, 0.08, 0.1, 0.12],
+            speedMs: [24, 21, 18, 19, 20, 21, 22],
+          },
+        ),
+        unsmoothedConfig,
+      ),
+    ).find((candidate) => candidate.id === "path-deviation-hotspot");
+
+    expect(finding).toEqual(
+      expect.objectContaining({
+        category: "line",
+        confidence: 0.6,
+        evidence: expect.arrayContaining([
+          expect.objectContaining({
+            label: "Path delta",
+            raw: expect.objectContaining({
+              maxPathDeltaM: expect.any(Number),
+              maxPathDeltaDistancePct: expect.any(Number),
+            }),
+          }),
+        ]),
+      }),
+    );
+  });
+
+  it("keeps path deviation quiet for missing GPS, ambiguous corners, and harmless alternate lines", () => {
+    const referencePath = localPathToLatLon([0, 10, 20, 30, 40, 50, 60], [0, 0, 0, 0, 0, 0, 0]);
+    const targetPath = localPathToLatLon([0, 10, 20, 30, 40, 50, 60], [0, 0, 1, 3, 3, 2, 2]);
+    const missingGpsIds = findingsFor(
+      compareTelemetry(
+        makeContext({
+          referenceChannels: { latitude: undefined, longitude: undefined },
+          targetChannels: { latitude: undefined, longitude: undefined },
+        }),
+        unsmoothedConfig,
+      ),
+    ).map((finding) => finding.id);
+    const ambiguousIds = findingsFor(
+      compareTelemetry(
+        replaceChannels(
+          makeContext(),
+          {
+            latitude: referencePath.latitude,
+            longitude: referencePath.longitude,
+            headingRad: [0, 0, 0, 0, 0, 0, 0],
+            speedMs: [24, 22, 20, 21, 22, 23, 24],
+          },
+          {
+            latitude: targetPath.latitude,
+            longitude: targetPath.longitude,
+            headingRad: [0, 0, 0, 0, 0, 0, 0],
+            speedMs: [24, 21, 18, 19, 20, 21, 22],
+          },
+        ),
+        unsmoothedConfig,
+      ),
+    ).map((finding) => finding.id);
+    const harmlessIds = findingsFor(
+      compareTelemetry(
+        replaceChannels(
+          makeContext(),
+          {
+            latitude: referencePath.latitude,
+            longitude: referencePath.longitude,
+            headingRad: [0, 0.02, 0.04, 0.06, 0.08, 0.1, 0.12],
+            speedMs: [24, 22, 20, 21, 22, 23, 24],
+          },
+          {
+            latitude: targetPath.latitude,
+            longitude: targetPath.longitude,
+            headingRad: [0, 0.02, 0.04, 0.06, 0.08, 0.1, 0.12],
+            speedMs: [24, 22, 20, 21, 23, 24, 25],
+          },
+        ),
+        unsmoothedConfig,
+      ),
+    ).map((finding) => finding.id);
+
+    expect(missingGpsIds).not.toContain("path-deviation-hotspot");
+    expect(ambiguousIds).not.toContain("path-deviation-hotspot");
+    expect(harmlessIds).not.toContain("path-deviation-hotspot");
+  });
+
+  it("fires exit acceleration deficit when minimum speed is similar but exit build is worse", () => {
+    const comparison = compareTelemetry(
+      replaceChannels(
+        makeContext(),
+        { speedMs: [24, 22, 20, 21, 23, 25, 27] },
+        { speedMs: [24, 22, 20.2, 20.5, 21, 22, 23] },
+      ),
+      unsmoothedConfig,
+    );
+    const finding = findingsFor(comparison).find((candidate) => candidate.id === "exit-acceleration-deficit");
+
+    expect(Math.abs(comparison.metrics.speed?.minSpeedDeltaKmh ?? 99)).toBeLessThan(defaultAnalysisConfig.thresholds.minSpeedDeltaKmh);
+    expect(finding).toEqual(
+      expect.objectContaining({
+        category: "throttle",
+        confidence: 0.71,
+        evidence: expect.arrayContaining([
+          expect.objectContaining({
+            label: "Exit acceleration",
+            raw: expect.objectContaining({ accelerationDeltaKmh: expect.any(Number) }),
+          }),
+        ]),
+      }),
+    );
+  });
+
+  it("keeps exit acceleration quiet without speed data", () => {
+    const ids = findingsFor(
+      compareTelemetry(
+        makeContext({
+          referenceChannels: { speedMs: undefined },
+          targetChannels: { speedMs: undefined },
+        }),
+        unsmoothedConfig,
+      ),
+    ).map((finding) => finding.id);
+
+    expect(ids).not.toContain("exit-acceleration-deficit");
+  });
+
   it("keeps direction-dependent line rules quiet for straight or missing GPS slices", () => {
     const straightIds = findingsFor(
       compareTelemetry(
@@ -1325,7 +2110,10 @@ describe("Phase 6 transition, line, and rotation rules", () => {
     const lineRuleIds = [
       "unused-track-on-entry-relative-to-reference",
       "missed-apex-relative-to-reference",
+      "late-apex",
+      "early-apex-pinched-exit",
       "pinched-exit-relative-to-reference",
+      "path-deviation-hotspot",
       "wide-without-benefit",
     ];
 
@@ -1344,19 +2132,49 @@ describe("Phase 6 transition, line, and rotation rules", () => {
       makeFinding("unused-track-on-entry-relative-to-reference", 64),
       makeFinding("over-slowing-entry", 80),
       makeFinding("missed-apex-relative-to-reference", 67),
+      makeFinding("late-apex", 66),
+      makeFinding("early-apex-pinched-exit", 66),
+      makeFinding("late-steering-unwind", 66),
       makeFinding("poor-rotation", 65),
       makeFinding("pinched-exit-relative-to-reference", 66),
+      makeFinding("path-deviation-hotspot", 62),
       makeFinding("exit-hesitation", 69),
       makeFinding("under-rotated-at-apex", 65),
+      makeFinding("delayed-rotation", 65),
+      makeFinding("minimum-speed-too-early-or-late", 64),
       makeFinding("excessive-steering", 66),
+      makeFinding("too-much-steering-while-braking", 67),
+      makeFinding("throttle-before-steering-unwind", 73),
+      makeFinding("throttle-reapplied-while-braking", 72),
+      makeFinding("exit-acceleration-deficit", 67),
+      makeFinding("dumping-brake-release", 60),
+      makeFinding("instability-correction", 70),
+      makeFinding("wrong-gear-on-exit", 63),
+      makeFinding("over-revving-without-speed-gain", 62),
+      makeFinding("short-shift-costing-exit", 62),
     ]);
 
     expect(findings.find((finding) => finding.id === "coasting-mid-corner")?.possibleEffectFindingIds).toContain("delayed-throttle-pickup");
     expect(findings.find((finding) => finding.id === "rushed-brake-to-throttle")?.possibleEffectFindingIds).toContain("early-throttle-with-lift");
     expect(findings.find((finding) => finding.id === "unused-track-on-entry-relative-to-reference")?.possibleEffectFindingIds).toContain("over-slowing-entry");
     expect(findings.find((finding) => finding.id === "missed-apex-relative-to-reference")?.possibleEffectFindingIds).toContain("poor-rotation");
+    expect(findings.find((finding) => finding.id === "late-apex")?.possibleEffectFindingIds).toContain("missed-apex-relative-to-reference");
+    expect(findings.find((finding) => finding.id === "early-apex-pinched-exit")?.possibleEffectFindingIds).toContain("pinched-exit-relative-to-reference");
     expect(findings.find((finding) => finding.id === "pinched-exit-relative-to-reference")?.possibleEffectFindingIds).toContain("exit-hesitation");
+    expect(findings.find((finding) => finding.id === "path-deviation-hotspot")?.possibleEffectFindingIds).toContain("pinched-exit-relative-to-reference");
+    expect(findings.find((finding) => finding.id === "path-deviation-hotspot")?.possibleEffectFindingIds).toContain("late-steering-unwind");
     expect(findings.find((finding) => finding.id === "under-rotated-at-apex")?.possibleEffectFindingIds).toContain("excessive-steering");
+    expect(findings.find((finding) => finding.id === "delayed-rotation")?.possibleEffectFindingIds).toContain("under-rotated-at-apex");
+    expect(findings.find((finding) => finding.id === "minimum-speed-too-early-or-late")?.possibleEffectFindingIds).toContain("over-slowing-entry");
+    expect(findings.find((finding) => finding.id === "too-much-steering-while-braking")?.possibleEffectFindingIds).toContain("instability-correction");
+    expect(findings.find((finding) => finding.id === "throttle-before-steering-unwind")?.possibleEffectFindingIds).toContain("early-throttle-with-lift");
+    expect(findings.find((finding) => finding.id === "throttle-reapplied-while-braking")?.possibleEffectFindingIds).toContain("instability-correction");
+    expect(findings.find((finding) => finding.id === "throttle-reapplied-while-braking")?.possibleEffectFindingIds).toContain("dumping-brake-release");
+    expect(findings.find((finding) => finding.id === "exit-acceleration-deficit")?.possibleEffectFindingIds).toContain("exit-hesitation");
+    expect(findings.find((finding) => finding.id === "wrong-gear-on-exit")?.possibleEffectFindingIds).toContain("exit-acceleration-deficit");
+    expect(findings.find((finding) => finding.id === "over-revving-without-speed-gain")?.possibleEffectFindingIds).toContain("exit-hesitation");
+    expect(findings.find((finding) => finding.id === "over-revving-without-speed-gain")?.possibleEffectFindingIds).toContain("exit-acceleration-deficit");
+    expect(findings.find((finding) => finding.id === "short-shift-costing-exit")?.possibleEffectFindingIds).toContain("exit-acceleration-deficit");
   });
 });
 
@@ -1383,7 +2201,13 @@ describe("Phase 1 deterministic rules", () => {
     { id: "early-throttle-with-lift", category: "throttle", severity: "medium", confidence: 0.77, primaryEvidenceLabel: "First throttle", primaryRawKey: "deltaM", mutate: (context: ComparisonContext) => replaceThrottle(context, [0, 0, 0, 0.5, 1, 1, 1], [0, 0.3, 0.1, 0.6, 1, 1, 1]) },
     { id: "exit-hesitation", category: "throttle", severity: "high", confidence: 0.76, primaryEvidenceLabel: "Exit speed", primaryRawKey: "deltaKmh", mutate: (context: ComparisonContext) =>
       replaceSpeedAndThrottle(context, [20, 20, 20, 20, 21, 22, 23], [20, 20, 20, 20, 20, 20, 21], [0, 0.2, 0.6, 1, 1, 1, 1], [0, 0, 0, 0.1, 0.4, 0.7, 0.8]) },
+    { id: "throttle-before-steering-unwind", category: "throttle", severity: "high", confidence: 0.7, primaryEvidenceLabel: "Throttle before unwind", primaryRawKey: "firstThrottleDeltaM", mutate: (context: ComparisonContext) =>
+      replaceChannels(context, { throttle: [0, 0, 0, 0, 0.4, 1, 1], steeringRad: [0, 0.4, 0.2, 0.05, 0, 0, 0], speedMs: [24, 22, 20, 21, 22, 23, 24] }, { throttle: [0, 0.4, 0.1, 0.6, 1, 1, 1], steeringRad: [0, 0.4, 0.35, 0.3, 0.22, 0.1, 0], speedMs: [24, 22, 20, 20, 20, 21, 22] }) },
+    { id: "throttle-reapplied-while-braking", category: "throttle", severity: "high", confidence: 0.69, primaryEvidenceLabel: "Throttle rise while braking", primaryRawKey: "throttleRise", mutate: (context: ComparisonContext) =>
+      replaceChannels(context, { brake: [0, 1, 0.8, 0.4, 0, 0, 0], throttle: [0, 0, 0, 0, 0.6, 1, 1], steeringRad: [0, 0.1, 0.2, 0.1, 0, 0, 0], speedMs: [24, 22, 20, 21, 22, 23, 24] }, { brake: [0, 1, 0.8, 0.6, 0, 0, 0], throttle: [0, 0, 0.45, 0.7, 0.2, 1, 1], steeringRad: [0, 0.1, -0.1, 0.15, -0.15, 0.1, 0], speedMs: [24, 22, 20, 20, 20, 21, 22] }) },
     { id: "excessive-steering", category: "steering", severity: "medium", confidence: 0.74, primaryEvidenceLabel: "Peak steering", primaryRawKey: "deltaDeg", mutate: (context: ComparisonContext) => replaceSteering(context, [0, 0.1, 0.2, 0.1, 0, 0, 0], [0, 0.25, 0.45, 0.25, 0, 0, 0]) },
+    { id: "too-much-steering-while-braking", category: "steering", severity: "high", confidence: 0.68, primaryEvidenceLabel: "Steering while braking", primaryRawKey: "peakSteeringWhileBrakingDeltaDeg", mutate: (context: ComparisonContext) =>
+      replaceChannels(context, { brake: [0, 1, 0.8, 0.2, 0, 0, 0], steeringRad: [0, 0.05, 0.1, 0.08, 0, 0, 0], speedMs: [24, 22, 20, 21, 22, 23, 24] }, { brake: [0, 1, 0.8, 0.4, 0, 0, 0], steeringRad: [0, 0.25, 0.45, 0.35, 0, 0, 0], speedMs: [24, 21, 18, 19, 20, 21, 23] }) },
     { id: "late-steering-unwind", category: "steering", severity: "high", confidence: 0.72, primaryEvidenceLabel: "Steering unwind", primaryRawKey: "deltaM", mutate: (context: ComparisonContext) => replaceSteering(context, [0, 0.3, 0.1, 0, 0, 0, 0], [0, 0.3, 0.25, 0.2, 0.15, 0.05, 0]) },
     { id: "poor-rotation", category: "rotation", severity: "medium", confidence: 0.66, primaryEvidenceLabel: "Peak steering", primaryRawKey: "deltaDeg", mutate: (context: ComparisonContext) =>
       replaceBrakesAndSteering(context, [0, 1, 0.8, 0.4, 0, 0, 0], [0, 1, 0, 0, 0, 0, 0], [0, 0.1, 0.2, 0.1, 0, 0, 0], [0, 0.25, 0.45, 0.25, 0, 0, 0]) },
@@ -1475,6 +2299,32 @@ function makeContext(
     slice: makeSlice(0.1, 0.112),
     reference: makeTelemetry("reference", distancePct, referenceChannels),
     target: makeTelemetry("target", distancePct, targetChannels),
+  };
+}
+
+function makeShortContext(): ComparisonContext {
+  const distancePct = [0.1, 0.103, 0.106];
+  const channels = {
+    speedMs: [20, 20, 20],
+    brake: [0, 0, 0],
+    throttle: [0, 0, 0],
+    steeringRad: [0, 0, 0],
+    gear: [3, 3, 3],
+    rpm: [5000, 5000, 5000],
+    latitude: [1, 1.00001, 1.00002],
+    longitude: [2, 2, 2],
+    headingRad: [0, 0, 0],
+  };
+
+  return {
+    analysis: makeAnalysis(),
+    roles: {
+      referenceLapId: "reference",
+      targetLapId: "target",
+    },
+    slice: makeSlice(0.1, 0.106),
+    reference: makeTelemetry("reference", distancePct, channels),
+    target: makeTelemetry("target", distancePct, channels),
   };
 }
 

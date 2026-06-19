@@ -14,6 +14,9 @@ export const throttleRules: RuleDefinition[] = [
   exitHesitation,
   coastingMidCorner,
   rushedBrakeToThrottle,
+  throttleBeforeSteeringUnwind,
+  throttleReappliedWhileBraking,
+  exitAccelerationDeficit,
   unnecessaryThrottleLift,
   deepThrottleLift,
   longThrottleLift,
@@ -197,6 +200,169 @@ export function rushedBrakeToThrottle(
       ...(speed === undefined
         ? []
         : [makeEvidence("Exit speed", formatSpeedDelta(speed.exitSpeedDeltaKmh), "delta", "secondary", { deltaKmh: speed.exitSpeedDeltaKmh })]),
+    ],
+  };
+}
+
+export function throttleBeforeSteeringUnwind(
+  comparison: Parameters<RuleDefinition>[0],
+): ReturnType<RuleDefinition> {
+  const throttle = comparison.metrics.throttle;
+  const steering = comparison.metrics.steering;
+  const speed = comparison.metrics.speed;
+  const lift = comparison.metrics.throttleLiftQuality;
+  const firstDelta = throttle?.firstThrottleDeltaM;
+  const unwindDelta = steering?.steeringUnwindDeltaM;
+  const throttleBeforeUnwind =
+    firstDelta !== undefined &&
+    unwindDelta !== undefined &&
+    firstDelta < -comparison.config.thresholds.throttleTimingDeltaM &&
+    unwindDelta > comparison.config.thresholds.throttleTimingDeltaM;
+  const poorOutcome =
+    (lift?.liftCountDelta ?? 0) > 0 ||
+    (steering?.correctionCountDelta ?? 0) >= comparison.config.thresholds.correctionCountDelta ||
+    (speed?.exitSpeedDeltaKmh ?? 0) < -comparison.config.thresholds.exitSpeedDeltaKmh;
+
+  if (!throttleBeforeUnwind || !poorOutcome) {
+    return undefined;
+  }
+
+  return {
+    id: "throttle-before-steering-unwind",
+    priority: 73,
+    title: "Wait until the wheel is opening",
+    why: "You start adding throttle before the steering has unwound compared with the reference, then the exit shows a lift, correction, or speed cost.",
+    practiceCue: "Hold maintenance throttle until your hands start opening, then build the pedal with the unwind.",
+    category: "throttle",
+    severity:
+      Math.abs(firstDelta) > THROTTLE_SEVERITY.throttleTimingDeltaM ||
+      unwindDelta > THROTTLE_SEVERITY.liftDurationDeltaM ||
+      (speed?.exitSpeedDeltaKmh ?? 0) < THROTTLE_SEVERITY.highExitSpeedLossKmh
+        ? "high"
+        : "medium",
+    confidence: 0.7,
+    evidence: [
+      makeEvidence("Throttle before unwind", formatDistanceDelta(firstDelta), "delta", "primary", {
+        firstThrottleDeltaM: firstDelta,
+      }),
+      makeEvidence("Steering unwind", formatDistanceDelta(unwindDelta), "delta", "secondary", {
+        steeringUnwindDeltaM: unwindDelta,
+      }),
+      ...(speed === undefined
+        ? []
+        : [makeEvidence("Exit speed", formatSpeedDelta(speed.exitSpeedDeltaKmh), "delta", "secondary", {
+            deltaKmh: speed.exitSpeedDeltaKmh,
+          })]),
+    ],
+  };
+}
+
+export function throttleReappliedWhileBraking(
+  comparison: Parameters<RuleDefinition>[0],
+): ReturnType<RuleDefinition> {
+  const coordination = comparison.metrics.pedalCoordination;
+  const targetRise = coordination?.targetThrottleRiseWhileBraking;
+  const riseDelta = coordination?.throttleRiseWhileBrakingDelta;
+  const steering = comparison.metrics.steering;
+  const speed = comparison.metrics.speed;
+  const lift = comparison.metrics.throttleLiftQuality;
+  const clearRise =
+    targetRise !== undefined &&
+    targetRise.rise > comparison.config.thresholds.throttleRiseWhileBrakingDelta &&
+    targetRise.peakBrake > comparison.config.thresholds.pedalDepthDelta &&
+    (riseDelta === undefined || riseDelta > comparison.config.thresholds.throttleRiseWhileBrakingDelta / 2);
+  const poorOutcome =
+    (lift?.liftCountDelta ?? 0) > 0 ||
+    (steering?.correctionCountDelta ?? 0) >= comparison.config.thresholds.correctionCountDelta ||
+    (speed?.exitSpeedDeltaKmh ?? 0) < -comparison.config.thresholds.exitSpeedDeltaKmh;
+
+  if (!clearRise || !poorOutcome) {
+    return undefined;
+  }
+
+  return {
+    id: "throttle-reapplied-while-braking",
+    priority: 72,
+    title: "Avoid adding throttle while still braking",
+    why: "Throttle rises while brake pressure is still active, which asks the car to settle and accelerate at the same time.",
+    practiceCue: "Finish the brake release first, then reapply throttle in one progressive squeeze.",
+    category: "throttle",
+    severity:
+      targetRise.rise > THROTTLE_SEVERITY.liftDepth ||
+      targetRise.peakBrake > 0.5 ||
+      (steering?.correctionCountDelta ?? 0) > THROTTLE_SEVERITY.extraCorrectionCountDelta
+        ? "high"
+        : "medium",
+    confidence: 0.69,
+    evidence: [
+      makeEvidence("Throttle rise while braking", formatPedalPointDelta(targetRise.rise), "absolute", "primary", {
+        throttleRise: targetRise.rise,
+        throttleRiseWhileBrakingDelta: riseDelta ?? targetRise.rise,
+      }),
+      makeEvidence("Brake during rise", formatPedalPointDelta(targetRise.peakBrake), "absolute", "secondary", {
+        averageBrake: targetRise.averageBrake,
+        peakBrake: targetRise.peakBrake,
+      }),
+      makeEvidence("Overlap distance", formatDistanceDuration(targetRise.distanceM), "absolute", "secondary", {
+        overlapDistanceM: targetRise.distanceM ?? 0,
+      }),
+    ],
+  };
+}
+
+export function exitAccelerationDeficit(
+  comparison: Parameters<RuleDefinition>[0],
+): ReturnType<RuleDefinition> {
+  const speedShape = comparison.metrics.speedShape;
+  const speed = comparison.metrics.speed;
+  const gainDelta = speedShape?.minSpeedToExitGainDeltaKmh;
+  const apexGainDelta = speedShape?.apexToExitGainDeltaKmh;
+  const accelerationLoss =
+    gainDelta !== undefined &&
+    gainDelta < -comparison.config.thresholds.exitAccelerationDeltaKmh;
+  const apexAccelerationLoss =
+    apexGainDelta !== undefined &&
+    apexGainDelta < -comparison.config.thresholds.exitAccelerationDeltaKmh;
+
+  if (!speedShape || !speed || (!accelerationLoss && !apexAccelerationLoss)) {
+    return undefined;
+  }
+
+  const primaryDelta = accelerationLoss ? gainDelta! : apexGainDelta!;
+  const referenceGain = accelerationLoss
+    ? speedShape.referenceMinSpeedToExitGainKmh
+    : speedShape.referenceApexToExitGainKmh;
+  const targetGain = accelerationLoss
+    ? speedShape.targetMinSpeedToExitGainKmh
+    : speedShape.targetApexToExitGainKmh;
+
+  return {
+    id: "exit-acceleration-deficit",
+    priority: 67,
+    title: "Build speed sooner after the slowest point",
+    why: "Minimum speed is not the main loss, but the target lap gains less speed from the corner center to the exit.",
+    practiceCue: "Focus on opening the wheel and pedal together so acceleration starts building as soon as the car is pointed.",
+    category: "throttle",
+    severity:
+      primaryDelta < THROTTLE_SEVERITY.exitAccelerationLossKmh ||
+      speed.exitSpeedDeltaKmh < THROTTLE_SEVERITY.highExitSpeedLossKmh
+        ? "high"
+        : "medium",
+    confidence: 0.71,
+    evidence: [
+      makeEvidence("Exit acceleration", formatSpeedDelta(primaryDelta), "delta", "primary", {
+        accelerationDeltaKmh: primaryDelta,
+      }),
+      ...(targetGain === undefined
+        ? []
+        : [makeEvidence("Target gain", `${targetGain.toFixed(1).replace(/\.0$/, "")} km/h`, "absolute", "secondary", {
+            targetGainKmh: targetGain,
+          })]),
+      ...(referenceGain === undefined
+        ? []
+        : [makeEvidence("Reference gain", `${referenceGain.toFixed(1).replace(/\.0$/, "")} km/h`, "absolute", "secondary", {
+            referenceGainKmh: referenceGain,
+          })]),
     ],
   };
 }

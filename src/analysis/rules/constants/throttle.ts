@@ -8,6 +8,7 @@ export const THROTTLE_SEVERITY = {
   liftDepth: 0.35,
   liftDepthDelta: 0.3,
   liftDurationDeltaM: 20,
+  exitAccelerationLossKmh: -6,
 } as const;
 
 export const THROTTLE_RULE_FACTORS = {

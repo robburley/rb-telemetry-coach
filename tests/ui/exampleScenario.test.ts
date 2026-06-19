@@ -16,6 +16,13 @@ describe("dev UI example scenario", () => {
     expect(result.report.findings.slice(0, 5)).toHaveLength(
       Math.min(5, result.report.findings.length),
     );
+    expect(result.report.findings.map((finding) => finding.id)).toEqual([
+      "braking-too-early",
+      "holding-brake-too-long",
+      "soft-initial-brake",
+      "under-braking-pressure",
+    ]);
+    expect(result.report.findings[2]?.possibleEffectFindingIds).toContain("holding-brake-too-long");
   });
 
   it("returns a graceful invalid-slice report for an unbounded zoom input", () => {

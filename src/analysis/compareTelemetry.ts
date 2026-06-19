@@ -26,6 +26,9 @@ export interface ComparisonMetrics {
   steering?: SteeringComparisonMetrics;
   gearRpm?: GearRpmComparisonMetrics;
   path?: PathComparisonMetrics;
+  apex?: ApexComparisonMetrics;
+  speedShape?: SpeedShapeComparisonMetrics;
+  pedalCoordination?: PedalCoordinationComparisonMetrics;
   throttleLiftQuality?: ThrottleLiftQualityComparisonMetrics;
   brakePressureShape?: BrakePressureShapeComparisonMetrics;
   brakeToThrottleTransition?: BrakeToThrottleTransitionComparisonMetrics;
@@ -40,6 +43,9 @@ export interface SpeedComparisonMetrics {
   averageSpeedDeltaKmh: number;
   referenceMinSpeedKmh: number;
   targetMinSpeedKmh: number;
+  referenceMinSpeedDistancePct: number;
+  targetMinSpeedDistancePct: number;
+  minSpeedDistanceDeltaM?: number;
   minSpeedDistancePct: number;
   exitDistancePct: number;
 }
@@ -72,11 +78,67 @@ export interface GearRpmComparisonMetrics {
   averageRpmDelta?: number;
   exitRpmDelta?: number;
   exitGearDelta?: number;
+  referenceAverageRpm?: number;
+  targetAverageRpm?: number;
+  referenceExitRpm?: number;
+  targetExitRpm?: number;
+  referenceExitGear?: number;
+  targetExitGear?: number;
+  referenceAverageGear?: number;
+  targetAverageGear?: number;
+  averageGearDelta?: number;
 }
 
 export interface PathComparisonMetrics {
   maxPathDeltaM?: number;
   maxPathDeltaDistancePct?: number;
+}
+
+export type ApexEvidenceSource = "min-speed" | "peak-steering" | "heading-rate" | "mid-slice";
+
+export interface ApexComparisonMetrics {
+  referenceDistancePct: number;
+  targetDistancePct: number;
+  distanceDeltaM?: number;
+  referenceSource: ApexEvidenceSource;
+  targetSource: ApexEvidenceSource;
+  referenceSpeedKmh?: number;
+  targetSpeedKmh?: number;
+  speedDeltaKmh?: number;
+}
+
+export interface SpeedShapeComparisonMetrics {
+  referenceMinSpeedToExitGainKmh?: number;
+  targetMinSpeedToExitGainKmh?: number;
+  minSpeedToExitGainDeltaKmh?: number;
+  referenceApexToExitGainKmh?: number;
+  targetApexToExitGainKmh?: number;
+  apexToExitGainDeltaKmh?: number;
+}
+
+export interface PedalCoordinationComparisonMetrics {
+  referenceSteeringWhileBraking?: SteeringWhileBrakingMetrics;
+  targetSteeringWhileBraking?: SteeringWhileBrakingMetrics;
+  averageSteeringWhileBrakingDeltaDeg?: number;
+  peakSteeringWhileBrakingDeltaDeg?: number;
+  referenceThrottleRiseWhileBraking?: ThrottleRiseWhileBrakingMetrics;
+  targetThrottleRiseWhileBraking?: ThrottleRiseWhileBrakingMetrics;
+  throttleRiseWhileBrakingDelta?: number;
+}
+
+export interface SteeringWhileBrakingMetrics {
+  averageAbsSteeringDeg: number;
+  peakAbsSteeringDeg: number;
+  brakeActiveDistanceM?: number;
+}
+
+export interface ThrottleRiseWhileBrakingMetrics {
+  rise: number;
+  startDistancePct: number;
+  endDistancePct: number;
+  distanceM?: number;
+  averageBrake: number;
+  peakBrake: number;
 }
 
 export interface ThrottleLiftQualityComparisonMetrics {
@@ -208,12 +270,15 @@ export function compareTelemetry(
     targetEvents,
     metrics: {
       lapLengthM,
-      speed: compareSpeed(reference, target),
+      speed: compareSpeed(reference, target, lapLengthM),
       braking: compareBraking(reference, target, referenceEvents, targetEvents, lapLengthM),
       throttle: compareThrottle(referenceEvents, targetEvents, lapLengthM),
       steering: compareSteering(reference, target, referenceEvents, targetEvents, lapLengthM),
       gearRpm: compareGearRpm(reference, target),
       path: comparePath(reference, target),
+      apex: compareApex(reference, target, lapLengthM),
+      speedShape: compareSpeedShape(reference, target),
+      pedalCoordination: comparePedalCoordination(reference, target, lapLengthM),
       throttleLiftQuality: compareThrottleLiftQuality(reference, target, lapLengthM),
       brakePressureShape: compareBrakePressureShape(reference, target, referenceEvents, targetEvents, lapLengthM),
       brakeToThrottleTransition: compareBrakeToThrottleTransition(
@@ -232,6 +297,7 @@ export function compareTelemetry(
 function compareSpeed(
   reference: ResampledTelemetry,
   target: ResampledTelemetry,
+  lapLengthM: number | undefined,
 ): SpeedComparisonMetrics | undefined {
   const referenceSpeed = reference.channels.speedMs;
   const targetSpeed = target.channels.speedMs;
@@ -251,6 +317,13 @@ function compareSpeed(
     averageSpeedDeltaKmh: msToKmh(average(targetSpeed) - average(referenceSpeed)),
     referenceMinSpeedKmh: msToKmh(referenceMin.value),
     targetMinSpeedKmh: msToKmh(targetMin.value),
+    referenceMinSpeedDistancePct: reference.distancePct[referenceMin.index]!,
+    targetMinSpeedDistancePct: target.distancePct[targetMin.index]!,
+    minSpeedDistanceDeltaM: eventDeltaM(
+      reference.distancePct[referenceMin.index],
+      target.distancePct[targetMin.index],
+      lapLengthM,
+    ),
     minSpeedDistancePct: target.distancePct[minIndex]!,
     exitDistancePct: target.distancePct[exitIndex]!,
   };
@@ -369,16 +442,29 @@ function compareGearRpm(
   const metrics: GearRpmComparisonMetrics = {};
 
   if (reference.channels.rpm && target.channels.rpm) {
-    metrics.averageRpmDelta = average(target.channels.rpm) - average(reference.channels.rpm);
-    metrics.exitRpmDelta =
-      target.channels.rpm[target.channels.rpm.length - 1]! -
-      reference.channels.rpm[reference.channels.rpm.length - 1]!;
+    const referenceAverageRpm = average(reference.channels.rpm);
+    const targetAverageRpm = average(target.channels.rpm);
+    const referenceExitRpm = reference.channels.rpm[reference.channels.rpm.length - 1]!;
+    const targetExitRpm = target.channels.rpm[target.channels.rpm.length - 1]!;
+    metrics.referenceAverageRpm = referenceAverageRpm;
+    metrics.targetAverageRpm = targetAverageRpm;
+    metrics.averageRpmDelta = targetAverageRpm - referenceAverageRpm;
+    metrics.referenceExitRpm = referenceExitRpm;
+    metrics.targetExitRpm = targetExitRpm;
+    metrics.exitRpmDelta = targetExitRpm - referenceExitRpm;
   }
 
   if (reference.channels.gear && target.channels.gear) {
-    metrics.exitGearDelta =
-      target.channels.gear[target.channels.gear.length - 1]! -
-      reference.channels.gear[reference.channels.gear.length - 1]!;
+    const referenceExitGear = reference.channels.gear[reference.channels.gear.length - 1]!;
+    const targetExitGear = target.channels.gear[target.channels.gear.length - 1]!;
+    const referenceAverageGear = average(reference.channels.gear);
+    const targetAverageGear = average(target.channels.gear);
+    metrics.referenceExitGear = referenceExitGear;
+    metrics.targetExitGear = targetExitGear;
+    metrics.exitGearDelta = targetExitGear - referenceExitGear;
+    metrics.referenceAverageGear = referenceAverageGear;
+    metrics.targetAverageGear = targetAverageGear;
+    metrics.averageGearDelta = targetAverageGear - referenceAverageGear;
   }
 
   return Object.keys(metrics).length > 0 ? metrics : undefined;
@@ -412,6 +498,133 @@ function comparePath(
   }
 
   return { maxPathDeltaM, maxPathDeltaDistancePct };
+}
+
+function compareApex(
+  reference: ResampledTelemetry,
+  target: ResampledTelemetry,
+  lapLengthM: number | undefined,
+): ApexComparisonMetrics | undefined {
+  const referenceHeading = deriveTravelDirections(reference, localCoordinatesFromTelemetry(reference));
+  const targetHeading = deriveTravelDirections(target, localCoordinatesFromTelemetry(target));
+  const referenceCandidate = chooseApexCandidate(
+    reference,
+    referenceHeading ? unwrapAngles(referenceHeading) : undefined,
+  );
+  const targetCandidate = chooseApexCandidate(
+    target,
+    targetHeading ? unwrapAngles(targetHeading) : undefined,
+  );
+  if (!referenceCandidate || !targetCandidate) {
+    return undefined;
+  }
+
+  const referenceDistancePct = reference.distancePct[referenceCandidate.index]!;
+  const targetDistancePct = target.distancePct[targetCandidate.index]!;
+  const referenceSpeedKmh = speedAtKmh(reference, referenceCandidate.index);
+  const targetSpeedKmh = speedAtKmh(target, targetCandidate.index);
+
+  return {
+    referenceDistancePct,
+    targetDistancePct,
+    distanceDeltaM: eventDeltaM(referenceDistancePct, targetDistancePct, lapLengthM),
+    referenceSource: referenceCandidate.source,
+    targetSource: targetCandidate.source,
+    referenceSpeedKmh,
+    targetSpeedKmh,
+    speedDeltaKmh: optionalDelta(targetSpeedKmh, referenceSpeedKmh),
+  };
+}
+
+function compareSpeedShape(
+  reference: ResampledTelemetry,
+  target: ResampledTelemetry,
+): SpeedShapeComparisonMetrics | undefined {
+  const referenceSpeed = reference.channels.speedMs;
+  const targetSpeed = target.channels.speedMs;
+  if (!referenceSpeed || !targetSpeed || referenceSpeed.length < 2 || targetSpeed.length < 2) {
+    return undefined;
+  }
+
+  const referenceMinSpeedIndex = minWithIndex(referenceSpeed).index;
+  const targetMinSpeedIndex = minWithIndex(targetSpeed).index;
+  const referenceApexIndex = chooseApexIndex(reference, undefined);
+  const targetApexIndex = chooseApexIndex(target, undefined);
+  const referenceExitDistancePct = reference.distancePct[reference.distancePct.length - 1];
+  const targetExitDistancePct = target.distancePct[target.distancePct.length - 1];
+  if (referenceExitDistancePct === undefined || targetExitDistancePct === undefined) {
+    return undefined;
+  }
+
+  const referenceMinSpeedToExitGainKmh = distanceWindowSpeedGainKmh(
+    reference,
+    reference.distancePct[referenceMinSpeedIndex],
+    referenceExitDistancePct,
+  );
+  const targetMinSpeedToExitGainKmh = distanceWindowSpeedGainKmh(
+    target,
+    target.distancePct[targetMinSpeedIndex],
+    targetExitDistancePct,
+  );
+  const referenceApexToExitGainKmh =
+    referenceApexIndex === undefined
+      ? undefined
+      : distanceWindowSpeedGainKmh(reference, reference.distancePct[referenceApexIndex], referenceExitDistancePct);
+  const targetApexToExitGainKmh =
+    targetApexIndex === undefined
+      ? undefined
+      : distanceWindowSpeedGainKmh(target, target.distancePct[targetApexIndex], targetExitDistancePct);
+
+  return {
+    referenceMinSpeedToExitGainKmh,
+    targetMinSpeedToExitGainKmh,
+    minSpeedToExitGainDeltaKmh: optionalDelta(
+      targetMinSpeedToExitGainKmh,
+      referenceMinSpeedToExitGainKmh,
+    ),
+    referenceApexToExitGainKmh,
+    targetApexToExitGainKmh,
+    apexToExitGainDeltaKmh: optionalDelta(targetApexToExitGainKmh, referenceApexToExitGainKmh),
+  };
+}
+
+function comparePedalCoordination(
+  reference: ResampledTelemetry,
+  target: ResampledTelemetry,
+  lapLengthM: number | undefined,
+): PedalCoordinationComparisonMetrics | undefined {
+  const referenceSteeringWhileBraking = summarizeSteeringWhileBraking(reference, lapLengthM);
+  const targetSteeringWhileBraking = summarizeSteeringWhileBraking(target, lapLengthM);
+  const referenceThrottleRiseWhileBraking = summarizeThrottleRiseWhileBraking(reference, lapLengthM);
+  const targetThrottleRiseWhileBraking = summarizeThrottleRiseWhileBraking(target, lapLengthM);
+
+  if (
+    !referenceSteeringWhileBraking &&
+    !targetSteeringWhileBraking &&
+    !referenceThrottleRiseWhileBraking &&
+    !targetThrottleRiseWhileBraking
+  ) {
+    return undefined;
+  }
+
+  return {
+    referenceSteeringWhileBraking,
+    targetSteeringWhileBraking,
+    averageSteeringWhileBrakingDeltaDeg: optionalDelta(
+      targetSteeringWhileBraking?.averageAbsSteeringDeg,
+      referenceSteeringWhileBraking?.averageAbsSteeringDeg,
+    ),
+    peakSteeringWhileBrakingDeltaDeg: optionalDelta(
+      targetSteeringWhileBraking?.peakAbsSteeringDeg,
+      referenceSteeringWhileBraking?.peakAbsSteeringDeg,
+    ),
+    referenceThrottleRiseWhileBraking,
+    targetThrottleRiseWhileBraking,
+    throttleRiseWhileBrakingDelta: optionalDelta(
+      targetThrottleRiseWhileBraking?.rise,
+      referenceThrottleRiseWhileBraking?.rise,
+    ),
+  };
 }
 
 function compareThrottleLiftQuality(
@@ -955,7 +1168,7 @@ function radToDeg(value: number): number {
   return value * (180 / Math.PI);
 }
 
-function average(values: Float32Array): number {
+function average(values: Float32Array | Int32Array): number {
   let sum = 0;
   for (const value of values) {
     sum += value;
@@ -1097,9 +1310,16 @@ function chooseApexIndex(
   telemetry: ResampledTelemetry,
   unwrappedHeading: Float64Array | undefined,
 ): number | undefined {
+  return chooseApexCandidate(telemetry, unwrappedHeading)?.index;
+}
+
+function chooseApexCandidate(
+  telemetry: ResampledTelemetry,
+  unwrappedHeading: Float64Array | undefined,
+): { index: number; source: ApexEvidenceSource } | undefined {
   const speedIndex = minSpeedIndex(telemetry);
   if (speedIndex !== undefined) {
-    return speedIndex;
+    return { index: speedIndex, source: "min-speed" };
   }
 
   const steering = telemetry.channels.steeringRad;
@@ -1110,7 +1330,7 @@ function chooseApexIndex(
         index = cursor;
       }
     }
-    return index;
+    return { index, source: "peak-steering" };
   }
 
   if (unwrappedHeading && unwrappedHeading.length > 1) {
@@ -1123,10 +1343,12 @@ function chooseApexIndex(
         index = cursor;
       }
     }
-    return index;
+    return { index, source: "heading-rate" };
   }
 
-  return telemetry.distancePct.length > 0 ? Math.floor(telemetry.distancePct.length / 2) : undefined;
+  return telemetry.distancePct.length > 0
+    ? { index: Math.floor(telemetry.distancePct.length / 2), source: "mid-slice" }
+    : undefined;
 }
 
 function minSpeedIndex(telemetry: ResampledTelemetry): number | undefined {
@@ -1156,6 +1378,30 @@ function speedLostDuringCoastKmh(
   }
 
   return msToKmh(speed[startIndex]! - speed[endIndex]!);
+}
+
+export function distanceWindowSpeedGainKmh(
+  telemetry: ResampledTelemetry,
+  startDistancePct: number | undefined,
+  endDistancePct: number | undefined,
+): number | undefined {
+  const speed = telemetry.channels.speedMs;
+  if (!speed || startDistancePct === undefined || endDistancePct === undefined || endDistancePct <= startDistancePct) {
+    return undefined;
+  }
+
+  const startIndex = closestDistanceIndex(telemetry.distancePct, startDistancePct);
+  const endIndex = closestDistanceIndex(telemetry.distancePct, endDistancePct);
+  if (startIndex === undefined || endIndex === undefined || endIndex <= startIndex) {
+    return undefined;
+  }
+
+  return msToKmh(speed[endIndex]! - speed[startIndex]!);
+}
+
+function speedAtKmh(telemetry: ResampledTelemetry, index: number | undefined): number | undefined {
+  const speed = telemetry.channels.speedMs;
+  return speed && index !== undefined ? msToKmh(speed[index]!) : undefined;
 }
 
 function closestDistanceIndex(distancePct: Float64Array, targetDistancePct: number): number | undefined {
@@ -1249,6 +1495,7 @@ interface ThrottleLiftSegment {
 }
 
 const THROTTLE_ACTIVE_LEVEL = 0.05;
+const BRAKE_ACTIVE_LEVEL = 0.05;
 const THROTTLE_LIFT_DROP = 0.12;
 const THROTTLE_LIFT_RECOVERY_MARGIN = 0.05;
 
@@ -1363,6 +1610,138 @@ function averageBrakeAroundMinSpeed(
 
   const { index } = minWithIndex(speed);
   return averageInRange(brake, Math.max(0, index - 1), Math.min(brake.length - 1, index + 1)) ?? 0;
+}
+
+function summarizeSteeringWhileBraking(
+  telemetry: ResampledTelemetry,
+  lapLengthM: number | undefined,
+): SteeringWhileBrakingMetrics | undefined {
+  const brake = telemetry.channels.brake;
+  const steering = telemetry.channels.steeringRad;
+  if (!brake || !steering || brake.length === 0 || steering.length !== brake.length) {
+    return undefined;
+  }
+
+  let weightedSteeringDeg = 0;
+  let peakAbsSteeringDeg = 0;
+  let totalBrakeActiveDistanceM = 0;
+  let activeSampleCount = 0;
+  let steeringSumDeg = 0;
+
+  for (let index = 0; index < brake.length; index += 1) {
+    if (clampPedal(brake[index]!) <= BRAKE_ACTIVE_LEVEL) {
+      continue;
+    }
+
+    const absSteeringDeg = Math.abs(radToDeg(steering[index]!));
+    peakAbsSteeringDeg = Math.max(peakAbsSteeringDeg, absSteeringDeg);
+    steeringSumDeg += absSteeringDeg;
+    activeSampleCount += 1;
+
+    const previousPct = telemetry.distancePct[Math.max(0, index - 1)];
+    const currentPct = telemetry.distancePct[index];
+    const spanM = index === 0 ? 0 : distanceBetweenPct(previousPct, currentPct, lapLengthM) ?? 0;
+    const safeSpanM = Math.max(0, spanM);
+    weightedSteeringDeg += absSteeringDeg * safeSpanM;
+    totalBrakeActiveDistanceM += safeSpanM;
+  }
+
+  if (activeSampleCount === 0) {
+    return undefined;
+  }
+
+  return {
+    averageAbsSteeringDeg:
+      totalBrakeActiveDistanceM > 0 ? weightedSteeringDeg / totalBrakeActiveDistanceM : steeringSumDeg / activeSampleCount,
+    peakAbsSteeringDeg,
+    brakeActiveDistanceM: lapLengthM === undefined ? undefined : totalBrakeActiveDistanceM,
+  };
+}
+
+function summarizeThrottleRiseWhileBraking(
+  telemetry: ResampledTelemetry,
+  lapLengthM: number | undefined,
+): ThrottleRiseWhileBrakingMetrics | undefined {
+  const brake = telemetry.channels.brake;
+  const throttle = telemetry.channels.throttle;
+  if (!brake || !throttle || brake.length < 2 || throttle.length !== brake.length) {
+    return undefined;
+  }
+
+  let best: ThrottleRiseWhileBrakingMetrics | undefined;
+  let segmentStartIndex: number | undefined;
+  let segmentStartThrottle = 0;
+  let segmentPeakThrottle = 0;
+  let segmentPeakIndex = 0;
+
+  const finishSegment = () => {
+    if (segmentStartIndex === undefined || segmentPeakIndex <= segmentStartIndex) {
+      segmentStartIndex = undefined;
+      return;
+    }
+
+    const rise = segmentPeakThrottle - segmentStartThrottle;
+    if (rise <= 0) {
+      segmentStartIndex = undefined;
+      return;
+    }
+
+    let brakeSum = 0;
+    let peakBrake = 0;
+    let count = 0;
+    for (let index = segmentStartIndex; index <= segmentPeakIndex; index += 1) {
+      const brakeValue = clampPedal(brake[index]!);
+      brakeSum += brakeValue;
+      peakBrake = Math.max(peakBrake, brakeValue);
+      count += 1;
+    }
+
+    const candidate = {
+      rise,
+      startDistancePct: telemetry.distancePct[segmentStartIndex]!,
+      endDistancePct: telemetry.distancePct[segmentPeakIndex]!,
+      distanceM: distanceBetweenPct(
+        telemetry.distancePct[segmentStartIndex],
+        telemetry.distancePct[segmentPeakIndex],
+        lapLengthM,
+      ),
+      averageBrake: count > 0 ? brakeSum / count : 0,
+      peakBrake,
+    };
+
+    if (!best || candidate.rise > best.rise) {
+      best = candidate;
+    }
+    segmentStartIndex = undefined;
+  };
+
+  for (let index = 1; index < throttle.length; index += 1) {
+    const previousBrakeActive = clampPedal(brake[index - 1]!) > BRAKE_ACTIVE_LEVEL;
+    const currentBrakeActive = clampPedal(brake[index]!) > BRAKE_ACTIVE_LEVEL;
+    if (!previousBrakeActive || !currentBrakeActive) {
+      finishSegment();
+      continue;
+    }
+
+    const previousThrottle = clampPedal(throttle[index - 1]!);
+    const currentThrottle = clampPedal(throttle[index]!);
+    if (currentThrottle > previousThrottle) {
+      if (segmentStartIndex === undefined) {
+        segmentStartIndex = index - 1;
+        segmentStartThrottle = previousThrottle;
+        segmentPeakThrottle = currentThrottle;
+        segmentPeakIndex = index;
+      } else if (currentThrottle > segmentPeakThrottle) {
+        segmentPeakThrottle = currentThrottle;
+        segmentPeakIndex = index;
+      }
+    } else {
+      finishSegment();
+    }
+  }
+  finishSegment();
+
+  return best;
 }
 
 function brakeRampRate(peakBrake: number, distanceM: number | undefined): number | undefined {

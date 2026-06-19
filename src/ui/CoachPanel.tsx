@@ -110,7 +110,7 @@ export function CoachPanel({
 
         <div className="finding-list">
           {visibleFindings.map((finding) => (
-            <FindingCard key={finding.id} finding={finding} />
+            <FindingCard key={finding.id} finding={finding} findings={findings} />
           ))}
         </div>
 
@@ -139,7 +139,16 @@ function LapBadge({ label, value }: { label: string; value: string }): JSX.Eleme
   );
 }
 
-function FindingCard({ finding }: { finding: CoachingFinding }): JSX.Element {
+function FindingCard({
+  finding,
+  findings,
+}: {
+  finding: CoachingFinding;
+  findings: CoachingFinding[];
+}): JSX.Element {
+  const causeTitles = titlesForIds(finding.possibleCauseFindingIds, findings);
+  const effectTitles = titlesForIds(finding.possibleEffectFindingIds, findings);
+
   return (
     <article className="finding-card">
       <div className="finding-title-row">
@@ -159,7 +168,35 @@ function FindingCard({ finding }: { finding: CoachingFinding }): JSX.Element {
           </div>
         ))}
       </dl>
+      {causeTitles.length > 0 || effectTitles.length > 0 ? (
+        <div className="linked-findings" aria-label="Linked findings">
+          {causeTitles.length > 0 ? (
+            <p>
+              <span>Possible cause</span>
+              {causeTitles.join(", ")}
+            </p>
+          ) : null}
+          {effectTitles.length > 0 ? (
+            <p>
+              <span>Possible effect</span>
+              {effectTitles.join(", ")}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
       <p className="cue">{finding.practiceCue}</p>
     </article>
   );
+}
+
+function titlesForIds(ids: string[] | undefined, findings: CoachingFinding[]): string[] {
+  if (!ids || ids.length === 0) {
+    return [];
+  }
+
+  const titleById = new Map(findings.map((finding) => [finding.id, finding.title]));
+  return ids.flatMap((id) => {
+    const title = titleById.get(id);
+    return title ? [title] : [];
+  });
 }

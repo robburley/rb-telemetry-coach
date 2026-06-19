@@ -32,7 +32,7 @@ export function CoachPanelShell({
   return (
     <div className="coach-panel-frame">
       <div className="coach-panel-chrome">
-        <span className="coach-panel-title">Garage 61 coach</span>
+        <span className="coach-panel-title"></span>
         <button
           className="coach-minimize-button"
           type="button"

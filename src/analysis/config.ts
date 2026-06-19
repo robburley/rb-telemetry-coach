@@ -28,8 +28,16 @@ export interface RuleThresholds {
   brakeRampDeltaM: Metres;
   coastingGapDeltaM: Metres;
   lateralOffsetDeltaM: Metres;
+  pathDeviationDeltaM: Metres;
   headingDeltaDeg: number;
   ambiguousCornerHeadingDeltaDeg: number;
+  gearDelta: number;
+  rpmDelta: number;
+  apexTimingDeltaM: Metres;
+  minSpeedLocationDeltaM: Metres;
+  exitAccelerationDeltaKmh: number;
+  steeringWhileBrakingDeltaDeg: number;
+  throttleRiseWhileBrakingDelta: number;
 }
 
 export const defaultAnalysisConfig: AnalysisConfig = {
@@ -55,7 +63,15 @@ export const defaultAnalysisConfig: AnalysisConfig = {
     brakeRampDeltaM: 8,
     coastingGapDeltaM: 10,
     lateralOffsetDeltaM: 0.75,
+    pathDeviationDeltaM: 1.5,
     headingDeltaDeg: 4,
     ambiguousCornerHeadingDeltaDeg: 2,
+    gearDelta: 1,
+    rpmDelta: 500,
+    apexTimingDeltaM: 8,
+    minSpeedLocationDeltaM: 8,
+    exitAccelerationDeltaKmh: 3,
+    steeringWhileBrakingDeltaDeg: 8,
+    throttleRiseWhileBrakingDelta: 0.12,
   },
 };

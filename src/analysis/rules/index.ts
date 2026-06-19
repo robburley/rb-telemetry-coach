@@ -1,4 +1,5 @@
 import { brakingRules } from "./braking";
+import { gearingRules } from "./gearing";
 import { lineRules } from "./line";
 import { stabilityRules } from "./stability";
 import { steeringRules } from "./steering";
@@ -15,6 +16,7 @@ export function runDeterministicRules(comparison: TelemetryComparison): RuleResu
     ...steeringRules,
     ...lineRules,
     ...stabilityRules,
+    ...gearingRules,
   ].map((rule) => {
     const finding = rule(comparison);
     return {
@@ -41,7 +43,13 @@ export function sortAndLinkFindings(findings: CoachingFinding[]): CoachingFindin
   link(sorted, "coasting-mid-corner", "exit-hesitation", "coasting can leave exit speed to rebuild");
   link(sorted, "rushed-brake-to-throttle", "early-throttle-with-lift", "a rushed handoff can force a throttle reset");
   link(sorted, "rushed-brake-to-throttle", "instability-correction", "a rushed handoff can unsettle the platform");
+  link(sorted, "throttle-reapplied-while-braking", "instability-correction", "mixed pedals can unsettle the platform");
+  link(sorted, "throttle-reapplied-while-braking", "dumping-brake-release", "mixed pedals often pair with a rushed release");
+  link(sorted, "throttle-before-steering-unwind", "early-throttle-with-lift", "early throttle before unwind can force a lift");
+  link(sorted, "throttle-before-steering-unwind", "exit-hesitation", "waiting after early throttle can delay the exit");
   link(sorted, "late-steering-unwind", "unnecessary-throttle-lift", "late unwind can force a throttle reset");
+  link(sorted, "too-much-steering-while-braking", "instability-correction", "steering load under brake can lead to corrections");
+  link(sorted, "too-much-steering-while-braking", "poor-rotation", "steering load under brake can point to unfinished rotation");
   link(sorted, "excessive-steering", "poor-rotation", "extra wheel can be a symptom of rotation");
   link(sorted, "under-rotated-at-apex", "excessive-steering", "unfinished rotation can ask for extra steering");
   link(sorted, "under-rotated-at-apex", "late-steering-unwind", "unfinished rotation can delay the unwind");
@@ -55,10 +63,25 @@ export function sortAndLinkFindings(findings: CoachingFinding[]): CoachingFindin
   link(sorted, "unused-track-on-entry-relative-to-reference", "over-slowing-entry", "narrow entry can cost minimum speed");
   link(sorted, "missed-apex-relative-to-reference", "poor-rotation", "missed apex and poor rotation often reinforce each other");
   link(sorted, "missed-apex-relative-to-reference", "late-steering-unwind", "missing the apex can keep steering loaded");
+  link(sorted, "late-apex", "missed-apex-relative-to-reference", "late apex timing can leave the reference apex missed");
+  link(sorted, "late-apex", "late-steering-unwind", "late apex timing can delay steering release");
+  link(sorted, "early-apex-pinched-exit", "pinched-exit-relative-to-reference", "early apex timing can tighten the exit");
+  link(sorted, "early-apex-pinched-exit", "late-steering-unwind", "pinching the exit can delay steering release");
   link(sorted, "pinched-exit-relative-to-reference", "exit-hesitation", "a pinched exit can delay throttle commitment");
   link(sorted, "pinched-exit-relative-to-reference", "late-steering-unwind", "a pinched exit can keep steering loaded");
+  link(sorted, "path-deviation-hotspot", "pinched-exit-relative-to-reference", "the largest path delta can show the exit pinch");
+  link(sorted, "path-deviation-hotspot", "late-steering-unwind", "path divergence can keep steering loaded");
   link(sorted, "wide-without-benefit", "over-slowing-entry", "extra width without speed gain can still cost the corner");
   link(sorted, "under-rotated-at-apex", "missed-apex-relative-to-reference", "unfinished rotation can leave the apex missed");
+  link(sorted, "delayed-rotation", "under-rotated-at-apex", "late rotation can show as unfinished apex rotation");
+  link(sorted, "delayed-rotation", "late-steering-unwind", "late rotation can keep steering loaded");
+  link(sorted, "minimum-speed-too-early-or-late", "over-slowing-entry", "early minimum speed often pairs with over-slowing");
+  link(sorted, "exit-acceleration-deficit", "exit-hesitation", "weak acceleration build often appears as delayed exit commitment");
+  link(sorted, "wrong-gear-on-exit", "exit-hesitation", "exit gear can limit commitment");
+  link(sorted, "wrong-gear-on-exit", "exit-acceleration-deficit", "exit gear can limit acceleration build");
+  link(sorted, "over-revving-without-speed-gain", "exit-hesitation", "extra revs without speed can leave the exit delayed");
+  link(sorted, "over-revving-without-speed-gain", "exit-acceleration-deficit", "extra revs without speed can weaken acceleration build");
+  link(sorted, "short-shift-costing-exit", "exit-acceleration-deficit", "short shifting can weaken acceleration build");
 
   return sorted;
 }
