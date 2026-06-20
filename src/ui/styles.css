@@ -83,7 +83,7 @@ button {
 .coach-minimize-button:focus-visible,
 .coach-launcher:focus-visible,
 .analyze-button:focus-visible,
-.show-more-button:focus-visible,
+.finding-card summary:focus-visible,
 .support-link a:focus-visible {
   outline: 3px solid #7cc8ba;
   outline-offset: 3px;
@@ -102,8 +102,15 @@ button {
   width: 56px;
   height: 56px;
   border-radius: 8px;
-  font-size: 0.88rem;
-  font-weight: 900;
+  overflow: hidden;
+  padding: 0;
+}
+
+.coach-launcher img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 
 .coach-launcher-busy {
@@ -170,14 +177,21 @@ h1 {
   font-weight: 800;
 }
 
-.session-meta {
+.session-title-row {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 16px;
+  flex-wrap: nowrap;
+  gap: 12px;
+  align-items: center;
+  min-width: 0;
 }
 
-.session-meta span {
+.session-title-row h1 {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.session-title-row span {
+  flex: 0 0 auto;
   min-width: 0;
   max-width: 100%;
   border: 1px solid rgb(177 198 203 / 18%);
@@ -213,18 +227,36 @@ h1 {
   background: rgb(8 14 19 / 38%);
 }
 
-.lap-badge span {
+.lap-badge > span {
   color: #9eb0b7;
   font-size: 0.76rem;
   font-weight: 800;
   text-transform: uppercase;
 }
 
-.lap-badge strong {
+.lap-badge-value {
+  display: grid;
+  gap: 2px;
   min-width: 0;
   color: #edf3f4;
   font-size: 0.95rem;
   overflow-wrap: anywhere;
+}
+
+.lap-badge-driver,
+.lap-badge-time {
+  min-width: 0;
+}
+
+.lap-badge-time {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 5px;
+  row-gap: 0;
+}
+
+.lap-badge-delta {
+  color: #a9bec5;
 }
 
 .session-actions {
@@ -234,8 +266,7 @@ h1 {
   min-width: 0;
 }
 
-.analyze-button,
-.show-more-button {
+.analyze-button {
   min-width: 0;
   min-height: 46px;
   border: 0;
@@ -248,8 +279,7 @@ h1 {
   overflow-wrap: anywhere;
 }
 
-.analyze-button:hover,
-.show-more-button:hover {
+.analyze-button:hover {
   background: #8de0d2;
 }
 
@@ -257,37 +287,6 @@ h1 {
   color: #9da8ad;
   background: #2d3a40;
   cursor: wait;
-}
-
-.slice-readout {
-  display: grid;
-  gap: 4px;
-  min-width: 0;
-  margin: 0;
-  padding: 13px 14px;
-  border: 1px solid rgb(163 185 191 / 18%);
-  border-radius: 6px;
-  color: #afbdc4;
-  background: rgb(8 14 19 / 38%);
-  font-size: 0.82rem;
-  font-weight: 800;
-}
-
-.session-detail-grid .slice-readout {
-  grid-column: 1 / -1;
-}
-
-.slice-readout span {
-  color: #93a4ad;
-  font-size: 0.7rem;
-  text-transform: uppercase;
-}
-
-.slice-readout strong {
-  min-width: 0;
-  color: #e9f1f2;
-  font-size: 0.92rem;
-  overflow-wrap: anywhere;
 }
 
 .findings-band {
@@ -305,6 +304,24 @@ h1 {
   margin-bottom: 18px;
 }
 
+.findings-header > div {
+  min-width: 0;
+  width: 100%;
+}
+
+.report-heading-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.report-heading-row .eyebrow {
+  margin: 0;
+}
+
 h2 {
   margin: 0;
   color: #f0f5f6;
@@ -316,10 +333,12 @@ h2 {
   flex: 0 0 auto;
   border: 1px solid #43535c;
   border-radius: 999px;
-  padding: 6px 10px;
+  padding: 5px 10px;
   color: #d6e2e5;
   font-size: 0.78rem;
   font-weight: 800;
+  line-height: 1;
+  background: rgb(10 17 22 / 36%);
 }
 
 .message {
@@ -345,15 +364,43 @@ h2 {
 .finding-card {
   border: 1px solid #34434b;
   border-radius: 8px;
-  padding: 18px;
   background: #1e252d;
 }
 
 .finding-title-row {
   display: grid;
-  grid-template-columns: 12px minmax(0, 1fr);
+  grid-template-columns: 12px minmax(0, 1fr) 18px;
   gap: 10px;
   align-items: center;
+  min-width: 0;
+  padding: 18px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.finding-title-row::-webkit-details-marker {
+  display: none;
+}
+
+.finding-title-row:hover h3 {
+  color: #b5f3e9;
+}
+
+.accordion-indicator {
+  width: 9px;
+  height: 9px;
+  border-right: 2px solid #8fd5c8;
+  border-bottom: 2px solid #8fd5c8;
+  transform: rotate(45deg);
+  transition: transform 140ms ease;
+}
+
+.finding-card[open] .accordion-indicator {
+  transform: rotate(225deg);
+}
+
+.finding-card-content {
+  padding: 0 18px 18px;
 }
 
 .severity-dot {
@@ -443,12 +490,6 @@ h3 {
   line-height: 1.45;
 }
 
-.show-more-button {
-  margin-top: 16px;
-  color: #f3f8f8;
-  background: #32434d;
-}
-
 .support-link {
   margin: 18px 0 0;
   padding-top: 16px;
@@ -472,6 +513,10 @@ h3 {
 }
 
 @media (max-width: 780px) {
+  .session-title-row {
+    gap: 8px;
+  }
+
   .coach-panel-frame {
     width: min(100vw - 20px, 680px);
     padding: 10px 0;
@@ -489,8 +534,7 @@ h3 {
   }
 
   .session-band,
-  .session-actions,
-  .session-detail-grid {
+  .session-actions {
     grid-template-columns: 1fr;
   }
 
@@ -499,6 +543,6 @@ h3 {
   }
 
   h1 {
-    font-size: 2.35rem;
+    font-size: 1.75rem;
   }
 }

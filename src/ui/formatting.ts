@@ -3,6 +3,7 @@ import type {
   DistanceSlice,
   FindingSeverity,
   LapSummary,
+  TrackInfo,
 } from "../domain/types";
 
 export function formatLapTime(seconds: number): string {
@@ -15,9 +16,18 @@ export function formatLapTime(seconds: number): string {
   return `${minutes}:${remainingSeconds.toFixed(3).padStart(6, "0")}`;
 }
 
+export function formatSignedDelta(seconds: number): string {
+  if (!Number.isFinite(seconds)) {
+    return "";
+  }
+
+  const sign = seconds >= 0 ? "+" : "-";
+  return `(${sign}${Math.abs(seconds).toFixed(3)}s)`;
+}
+
 export function formatSlice(slice: DistanceSlice | undefined): string {
   if (!slice) {
-    return "No Garage 61 slice";
+    return "";
   }
 
   const start = (slice.startDistancePct * 100).toFixed(2);
@@ -31,7 +41,27 @@ export function formatLapSummary(lap: LapSummary | undefined): string {
   }
 
   const lapNumber = lap.lapNumber === undefined ? "Lap" : `Lap ${lap.lapNumber}`;
-  return `${lapNumber} · ${lap.driver.name} · ${formatLapTime(lap.lapTimeSec)}`;
+  return `${lapNumber} - ${lap.driver.name} - ${formatLapTime(lap.lapTimeSec)}`;
+}
+
+export function formatLapIdentity(lap: LapSummary | undefined): string {
+  if (!lap) {
+    return "Unknown lap";
+  }
+
+  return `${lap.driver.name} - ${formatLapTime(lap.lapTimeSec)}`;
+}
+
+export function formatTrackTitle(track: TrackInfo | undefined, fallback = "Live Garage 61 analysis"): string {
+  if (!track) {
+    return fallback;
+  }
+
+  if (track.shortName) {
+    return track.shortName;
+  }
+
+  return `${track.name}${track.variant ? ` - ${track.variant}` : ""}`;
 }
 
 export function reportStatusMessage(report: AnalysisReport): string {

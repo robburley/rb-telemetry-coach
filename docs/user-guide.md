@@ -1,10 +1,10 @@
-# Garage 61 Telemetry Coach User Guide
+# RB Telemetry Coach User Guide
 
 This guide assumes you have already installed the Chrome extension.
 
 ## What It Does
 
-Garage 61 Telemetry Coach adds a small coaching panel to Garage 61 analysis pages. It compares two active laps, reads the currently zoomed distance range, and reports priority-sorted coaching findings for that slice.
+RB Telemetry Coach adds a small coaching panel to Garage 61 analysis pages. It compares two active laps, reads the currently zoomed distance range, and reports priority-sorted coaching findings for that slice.
 
 The current prototype is designed for two-lap comparisons:
 
@@ -17,8 +17,8 @@ The current prototype is designed for two-lap comparisons:
 1. Open Chrome and go to Garage 61.
 2. Open an analysis page that compares laps.
 3. Make sure exactly two laps are active in the Garage 61 comparison.
-4. Look for the `G61` button in the upper-right corner of the page.
-5. Click `G61` to expand the Garage 61 coach panel.
+4. Look for the RB logo button in the upper-right corner of the page.
+5. Click the RB logo to expand the coach panel.
 
 The panel may show `Waiting` while Garage 61 is still loading analysis metadata and lap telemetry. If the page has just opened, wait a moment or interact with the Garage 61 chart so the telemetry requests complete.
 
@@ -38,7 +38,7 @@ Each finding includes:
 - Supporting telemetry evidence.
 - A practice cue for what to try next.
 
-If there are more than five findings, use `Show more` to reveal the rest.
+Each finding starts collapsed with its title visible. Select a finding title to expand its evidence, linked context, and practice cue.
 
 ## Using Zoom Updates
 
@@ -52,11 +52,11 @@ For best results:
 
 ## Minimize the Panel
 
-Click the `-` button in the Garage 61 coach header to minimize the panel back to the `G61` launcher.
+Click the `-` button in the coach header to minimize the panel back to the RB logo launcher.
 
 ## Troubleshooting
 
-### The `G61` Button Does Not Appear
+### The RB Logo Button Does Not Appear
 
 - Confirm you are on `garage61.net` or `www.garage61.net`.
 - Confirm the current page is a Garage 61 analysis page.
@@ -87,4 +87,3 @@ The selected zoom range is outside the supported range.
 ### No Clear Finding Appears
 
 Some slices do not produce a deterministic finding. Try a different part of the lap, especially a braking zone, throttle application zone, steering transition, or corner exit.
-

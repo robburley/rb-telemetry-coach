@@ -17,6 +17,7 @@ import {
 import { Garage61PageNetworkProvider } from "../providers/Garage61PageNetworkProvider";
 import { CoachPanel } from "../ui/CoachPanel";
 import { CoachPanelShell } from "../ui/CoachPanelShell";
+import { formatTrackTitle } from "../ui/formatting";
 import uiStyles from "../ui/styles.css?inline";
 import {
   GARAGE61_CAPTURED_RESPONSE_EVENT,
@@ -25,8 +26,7 @@ import {
 } from "./injectedPageObserver";
 import { generateLiveReportForZoom } from "./liveReport";
 
-const ROOT_ID = "__garage61_telemetry_coach_root";
-const INITIAL_VISIBLE_FINDINGS = 5;
+const ROOT_ID = "__rb_telemetry_coach_root";
 const DEBUG_PREFIX = "[Garage61 Telemetry Coach]";
 
 interface LiveScenario {
@@ -80,7 +80,6 @@ function ExtensionPanel(): JSX.Element {
   );
   const [scenario, setScenario] = useState<LiveScenario | undefined>();
   const [report, setReport] = useState<AnalysisReport | undefined>();
-  const [visibleLimit, setVisibleLimit] = useState(INITIAL_VISIBLE_FINDINGS);
   const [error, setError] = useState<string | undefined>();
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [hasLiveTelemetry, setHasLiveTelemetry] = useState(false);
@@ -164,7 +163,6 @@ function ExtensionPanel(): JSX.Element {
 
       setIsAnalyzing(true);
       setError(undefined);
-      setVisibleLimit(INITIAL_VISIBLE_FINDINGS);
 
       void (async () => {
         try {
@@ -274,7 +272,6 @@ function ExtensionPanel(): JSX.Element {
     lastAnalyzedRouteState.current = undefined;
     setReport(undefined);
     setError(undefined);
-    setVisibleLimit(INITIAL_VISIBLE_FINDINGS);
   }, [route.analysisId]);
 
   useEffect(() => {
@@ -311,13 +308,10 @@ function ExtensionPanel(): JSX.Element {
       <CoachPanel
         analysisTitle={route.analysisId ? `Garage 61 ${route.analysisId}` : "Garage 61 page"}
         carName={scenario?.analysis.car.name ?? "Waiting for live capture"}
-        trackName={`${scenario?.analysis.track.name ?? "Live Garage 61 analysis"}${
-          scenario?.analysis.track.variant ? ` - ${scenario.analysis.track.variant}` : ""
-        }`}
+        trackName={formatTrackTitle(scenario?.analysis.track)}
         referenceLap={referenceLap}
         targetLap={targetLap}
         currentSlice={route.zoom.status === "slice" ? route.zoom.slice : undefined}
-        visibleLimit={visibleLimit}
         report={report}
         error={error}
         isAnalyzing={isAnalyzing}
@@ -330,7 +324,6 @@ function ExtensionPanel(): JSX.Element {
             : undefined
         }
         onAnalyze={() => runLiveReport("manual")}
-        onShowMore={() => setVisibleLimit((current) => current + 5)}
       />
     </CoachPanelShell>
   );
@@ -380,8 +373,7 @@ const extensionStyles = `
   }
 
   .session-band,
-  .session-actions,
-  .session-detail-grid {
+  .session-actions {
     grid-template-columns: 1fr;
   }
 

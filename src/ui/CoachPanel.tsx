@@ -5,7 +5,8 @@ import type {
   LapSummary,
 } from "../domain/types";
 import {
-  formatLapSummary,
+  formatLapTime,
+  formatSignedDelta,
   formatSlice,
   reportStatusMessage,
   severityLabel,
@@ -18,14 +19,12 @@ interface CoachPanelProps {
   referenceLap?: LapSummary;
   targetLap?: LapSummary;
   currentSlice?: DistanceSlice;
-  visibleLimit: number;
   report?: AnalysisReport;
   isAnalyzing: boolean;
   isAnalyzeDisabled?: boolean;
   analyzeDisabledReason?: string;
   error?: string;
   onAnalyze: () => void;
-  onShowMore: () => void;
 }
 
 export function CoachPanel({
@@ -35,42 +34,41 @@ export function CoachPanel({
   referenceLap,
   targetLap,
   currentSlice,
-  visibleLimit,
   report,
   isAnalyzing,
   isAnalyzeDisabled = false,
   analyzeDisabledReason,
   error,
   onAnalyze,
-  onShowMore,
 }: CoachPanelProps): JSX.Element {
   const findings = report?.findings ?? [];
-  const visibleFindings = findings.slice(0, visibleLimit);
-  const hiddenCount = Math.max(0, findings.length - visibleFindings.length);
   const analyzeDisabled = isAnalyzing || isAnalyzeDisabled;
   const displayedSlice = report?.slice ?? currentSlice;
+  const isCompleteReport = report?.status === "complete";
   const reportTitle =
     report && report.status !== "complete" ? "Needs attention" : report ? reportStatusMessage(report) : "Ready";
+  const analyzeButtonLabel = isAnalyzing
+    ? "Analyzing"
+    : isAnalyzeDisabled
+      ? "Waiting"
+      : `Analyze ${formatSlice(displayedSlice)}`;
+  const targetDeltaSec =
+    referenceLap && targetLap ? targetLap.lapTimeSec - referenceLap.lapTimeSec : undefined;
 
   return (
     <main className="coach-shell">
       <section className="session-band" aria-label="Current analysis">
         <div className="session-copy">
-          <p className="eyebrow">Garage 61 telemetry coach</p>
-          <h1>{trackName}</h1>
-          <div className="session-meta">
+          <p className="eyebrow">RB Telemetry Coach</p>
+          <div className="session-title-row">
+            <h1>{trackName}</h1>
             <span>{carName}</span>
-            <span>{analysisTitle}</span>
           </div>
         </div>
         <div className="session-stack">
           <div className="session-detail-grid">
-            <LapBadge label="Reference" value={formatLapSummary(referenceLap)} />
-            <LapBadge label="Target" value={formatLapSummary(targetLap)} />
-            <p className="slice-readout">
-              <span>Current slice</span>
-              <strong>{formatSlice(displayedSlice)}</strong>
-            </p>
+            <LapBadge label="Reference" lap={referenceLap} />
+            <LapBadge label="Target" lap={targetLap} deltaSec={targetDeltaSec} />
           </div>
           <div className="session-actions">
             <button
@@ -80,7 +78,7 @@ export function CoachPanel({
               disabled={analyzeDisabled}
               title={isAnalyzeDisabled ? analyzeDisabledReason : undefined}
             >
-              {isAnalyzing ? "Analyzing" : isAnalyzeDisabled ? "Waiting" : "Analyze"}
+              {analyzeButtonLabel}
             </button>
           </div>
         </div>
@@ -89,12 +87,12 @@ export function CoachPanel({
       <section className="findings-band" aria-label="Coaching findings">
         <div className="findings-header">
           <div>
-            <p className="eyebrow">Coaching report</p>
-            <h2>{reportTitle}</h2>
+            <div className="report-heading-row">
+              <p className="eyebrow">Coaching report</p>
+              {isCompleteReport ? <span className="status-pill">{reportTitle}</span> : null}
+            </div>
+            {!isCompleteReport ? <h2>{reportTitle}</h2> : null}
           </div>
-          {report?.status === "complete" ? (
-            <span className="status-pill">Priority sorted</span>
-          ) : null}
         </div>
 
         {error ? <p className="message message-error">{error}</p> : null}
@@ -109,16 +107,10 @@ export function CoachPanel({
         ) : null}
 
         <div className="finding-list">
-          {visibleFindings.map((finding) => (
+          {findings.map((finding) => (
             <FindingCard key={finding.id} finding={finding} findings={findings} />
           ))}
         </div>
-
-        {hiddenCount > 0 ? (
-          <button className="show-more-button" type="button" onClick={onShowMore}>
-            Show {hiddenCount} more
-          </button>
-        ) : null}
 
         <p className="support-link">
           <a href="https://buymeacoffee.com/burleydev" target="_blank" rel="noreferrer">
@@ -130,11 +122,31 @@ export function CoachPanel({
   );
 }
 
-function LapBadge({ label, value }: { label: string; value: string }): JSX.Element {
+function LapBadge({
+  label,
+  lap,
+  deltaSec,
+}: {
+  label: string;
+  lap: LapSummary | undefined;
+  deltaSec?: number;
+}): JSX.Element {
   return (
     <div className="lap-badge">
       <span>{label}</span>
-      <strong>{value}</strong>
+      {lap ? (
+        <strong className="lap-badge-value">
+          <span className="lap-badge-driver">{lap.driver.name}</span>
+          <span className="lap-badge-time">
+            <span>{formatLapTime(lap.lapTimeSec)}</span>
+            {deltaSec === undefined ? null : (
+              <span className="lap-badge-delta">{formatSignedDelta(deltaSec)}</span>
+            )}
+          </span>
+        </strong>
+      ) : (
+        <strong className="lap-badge-value">Unknown lap</strong>
+      )}
     </div>
   );
 }
@@ -150,42 +162,45 @@ function FindingCard({
   const effectTitles = titlesForIds(finding.possibleEffectFindingIds, findings);
 
   return (
-    <article className="finding-card">
-      <div className="finding-title-row">
+    <details className="finding-card">
+      <summary className="finding-title-row">
         <span
           className={`severity-dot severity-${finding.severity}`}
           aria-label={severityLabel(finding.severity)}
           title={severityLabel(finding.severity)}
         />
         <h3>{finding.title}</h3>
-      </div>
-      <p className="finding-why">{finding.why}</p>
-      <dl className="evidence-list">
-        {finding.evidence.map((item) => (
-          <div key={`${finding.id}-${item.label}-${item.value}`}>
-            <dt>{item.label}</dt>
-            <dd>{item.value}</dd>
+        <span className="accordion-indicator" aria-hidden="true" />
+      </summary>
+      <div className="finding-card-content">
+        <p className="finding-why">{finding.why}</p>
+        <dl className="evidence-list">
+          {finding.evidence.map((item) => (
+            <div key={`${finding.id}-${item.label}-${item.value}`}>
+              <dt>{item.label}</dt>
+              <dd>{item.value}</dd>
+            </div>
+          ))}
+        </dl>
+        {causeTitles.length > 0 || effectTitles.length > 0 ? (
+          <div className="linked-findings" aria-label="Linked findings">
+            {causeTitles.length > 0 ? (
+              <p>
+                <span>Possible cause</span>
+                {causeTitles.join(", ")}
+              </p>
+            ) : null}
+            {effectTitles.length > 0 ? (
+              <p>
+                <span>Possible effect</span>
+                {effectTitles.join(", ")}
+              </p>
+            ) : null}
           </div>
-        ))}
-      </dl>
-      {causeTitles.length > 0 || effectTitles.length > 0 ? (
-        <div className="linked-findings" aria-label="Linked findings">
-          {causeTitles.length > 0 ? (
-            <p>
-              <span>Possible cause</span>
-              {causeTitles.join(", ")}
-            </p>
-          ) : null}
-          {effectTitles.length > 0 ? (
-            <p>
-              <span>Possible effect</span>
-              {effectTitles.join(", ")}
-            </p>
-          ) : null}
-        </div>
-      ) : null}
-      <p className="cue">{finding.practiceCue}</p>
-    </article>
+        ) : null}
+        <p className="cue">{finding.practiceCue}</p>
+      </div>
+    </details>
   );
 }
 

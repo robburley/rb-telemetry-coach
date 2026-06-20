@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  formatLapIdentity,
   formatLapSummary,
   formatLapTime,
+  formatSignedDelta,
   formatSlice,
+  formatTrackTitle,
   reportStatusMessage,
   severityLabel,
 } from "../../src/ui/formatting";
@@ -24,7 +27,10 @@ describe("dev UI formatting", () => {
     };
 
     expect(formatLapTime(101.2345)).toBe("1:41.234");
-    expect(formatLapSummary(lap)).toBe("Lap 7 · Driver One · 1:41.234");
+    expect(formatLapIdentity(lap)).toBe("Driver One - 1:41.234");
+    expect(formatLapSummary(lap)).toBe("Lap 7 - Driver One - 1:41.234");
+    expect(formatSignedDelta(4.349)).toBe("(+4.349s)");
+    expect(formatSignedDelta(-0.1254)).toBe("(-0.125s)");
   });
 
   it("formats selected slices and status messages", () => {
@@ -45,6 +51,25 @@ describe("dev UI formatting", () => {
       "Zoom to a shorter slice, up to 15% of the lap.",
     );
     expect(severityLabel("medium")).toBe("Medium severity");
+  });
+
+  it("prefers Garage 61 track short names for display titles", () => {
+    expect(
+      formatTrackTitle({
+        id: 67,
+        name: "Autodromo Jose Carlos Pace",
+        variant: "Grand Prix",
+        shortName: "Interlagos (GP)",
+      }),
+    ).toBe("Interlagos (GP)");
+
+    expect(
+      formatTrackTitle({
+        id: 67,
+        name: "Autodromo Jose Carlos Pace",
+        variant: "Grand Prix",
+      }),
+    ).toBe("Autodromo Jose Carlos Pace - Grand Prix");
   });
 
   it("explains unsupported active-lap counts", () => {

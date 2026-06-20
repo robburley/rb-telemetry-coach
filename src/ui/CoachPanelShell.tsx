@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import rbTelemetryCoachLogo from "../../assets/rb-telemetry-coach-logo.webp";
 
 interface CoachPanelShellProps {
   isExpanded: boolean;
@@ -20,11 +21,11 @@ export function CoachPanelShell({
       <button
         className={`coach-launcher${isBusy ? " coach-launcher-busy" : ""}`}
         type="button"
-        aria-label="Open Garage 61 coach"
-        title="Open Garage 61 coach"
+        aria-label="Open RB Telemetry Coach"
+        title="Open RB Telemetry Coach"
         onClick={onExpand}
       >
-        <span aria-hidden="true">G61</span>
+        <img src={rbTelemetryCoachLogo} alt="" aria-hidden="true" />
       </button>
     );
   }
@@ -36,8 +37,8 @@ export function CoachPanelShell({
         <button
           className="coach-minimize-button"
           type="button"
-          aria-label="Minimize Garage 61 coach"
-          title="Minimize Garage 61 coach"
+          aria-label="Minimize RB Telemetry Coach"
+          title="Minimize RB Telemetry Coach"
           onClick={onMinimize}
         >
           <span aria-hidden="true">-</span>
