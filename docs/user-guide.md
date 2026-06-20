@@ -6,7 +6,7 @@ This guide assumes you have already installed the Chrome extension.
 
 RB Telemetry Coach adds a small coaching panel to Garage 61 analysis pages. It compares two active laps, reads the currently zoomed distance range, and reports priority-sorted coaching findings for that slice.
 
-The current prototype is designed for two-lap comparisons:
+The current implementation is designed for two-lap comparisons:
 
 - The faster active lap is treated as the reference lap.
 - The slower active lap is treated as the target lap.
@@ -74,7 +74,7 @@ The coach is waiting for Garage 61 data captured from the page.
 
 ### The Panel Says to Hide Laps
 
-The current prototype can analyze exactly two active laps. Hide extra laps in Garage 61 until only the two laps you want to compare remain active.
+The current implementation can analyze exactly two active laps. Hide extra laps in Garage 61 until only the two laps you want to compare remain active.
 
 ### The Panel Asks for a Shorter or Longer Slice
 

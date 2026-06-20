@@ -2,7 +2,7 @@
 
 ## Project Context
 
-RB Telemetry Coach is a private Garage 61 analysis prototype. It ships as a Chrome extension that injects a React coaching panel into Garage 61 pages, captures Garage 61 analysis and telemetry responses, compares exactly two active laps, and reports deterministic coaching findings for the currently selected distance slice.
+RB Telemetry Coach is a private Garage 61 analysis. It ships as a Chrome extension that injects a React coaching panel into Garage 61 pages, captures Garage 61 analysis and telemetry responses, compares exactly two active laps, and reports deterministic coaching findings for the currently selected distance slice.
 
 The app is TypeScript-first and uses Vite for both the local development UI and extension bundle. Keep changes grounded in the current deterministic telemetry pipeline rather than adding unrelated product surfaces.
 

@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "RB Telemetry Coach Prototype",
+  "name": "RB Telemetry Coach",
   "version": "0.1.0",
-  "description": "Private prototype panel for telemetry coaching.",
+  "description": "Adds local telemetry coaching feedback to Garage 61 analysis pages.",
   "action": {
     "default_title": "RB Telemetry Coach"
   },
