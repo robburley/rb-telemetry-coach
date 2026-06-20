@@ -110,6 +110,8 @@ export function CoachPanel({
           {findings.map((finding) => (
             <FindingCard key={finding.id} finding={finding} findings={findings} />
           ))}
+          
+          {isCompleteReport ? <p className="message">These findings only report the differences between the target and reference laps and may not accurately portray the best way to drive this section of track.</p> : null}
         </div>
 
         <p className="support-link">
