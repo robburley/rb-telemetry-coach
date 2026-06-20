@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import type { AnalysisReport } from "../../domain/types";
+import type { AnalysisReport } from "../../domain/reportTypes";
 import { CoachPanel } from "../CoachPanel";
 import { CoachPanelShell } from "../CoachPanelShell";
 import {

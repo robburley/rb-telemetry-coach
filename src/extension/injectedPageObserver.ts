@@ -1,30 +1,18 @@
-import {
-  observeGarage61PageResponses,
-  type Garage61CapturedResponse,
-} from "../garage61/network";
-import {
-  observeGarage61UrlChanges,
-  type Garage61UrlObserverSnapshot,
-} from "../garage61/url";
+import { observeGarage61PageResponses } from "../garage61/network";
+import { observeGarage61UrlChanges } from "../garage61/url";
+import type {
+  Garage61CapturedResponseWindowMessage,
+  Garage61RouteChangedWindowMessage,
+} from "./types";
 
 export const GARAGE61_CAPTURED_RESPONSE_EVENT = "garage61-telemetry-captured-response";
 export const GARAGE61_ROUTE_CHANGED_EVENT = "garage61-telemetry-route-changed";
 
-export interface Garage61CapturedResponseWindowMessage {
-  source: "garage61-telemetry-coach";
-  type: typeof GARAGE61_CAPTURED_RESPONSE_EVENT;
-  response: Garage61CapturedResponse;
-}
-
-export interface Garage61RouteChangedWindowMessage {
-  source: "garage61-telemetry-coach";
-  type: typeof GARAGE61_ROUTE_CHANGED_EVENT;
-  snapshot: Garage61UrlObserverSnapshot;
-}
-
-export type Garage61TelemetryCoachWindowMessage =
-  | Garage61CapturedResponseWindowMessage
-  | Garage61RouteChangedWindowMessage;
+export type {
+  Garage61CapturedResponseWindowMessage,
+  Garage61RouteChangedWindowMessage,
+  Garage61TelemetryCoachWindowMessage,
+} from "./types";
 
 export function startGarage61InjectedPageObserver(win: Window = window): void {
   const globalKey = "__garage61TelemetryCoachObserver";

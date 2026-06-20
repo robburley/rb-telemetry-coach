@@ -5,8 +5,8 @@ import type {
   LapTelemetry,
   LapTelemetryChannels,
   TelemetryChannelAvailability,
-  TelemetrySourceSummary,
-} from "../../domain/types";
+} from "../../domain/telemetryTypes";
+import type { NormaliseGarage61TelemetryOptions } from "./types";
 
 const channelNameByTelemetryKey = {
   speedMs: "speed_mps",
@@ -20,10 +20,7 @@ const channelNameByTelemetryKey = {
   headingRad: "heading_rad",
 } as const;
 
-export interface NormaliseGarage61TelemetryOptions {
-  lapId: string;
-  provider?: TelemetrySourceSummary["provider"];
-}
+export type { NormaliseGarage61TelemetryOptions } from "./types";
 
 export function normaliseGarage61Telemetry(
   decoded: DecodedGarage61Telemetry,

@@ -8,12 +8,14 @@ import {
   normaliseGarage61Telemetry,
   parseGarage61TdfDataUrlFixture,
 } from "../garage61";
-import type { AnalysisMetadata, LapTelemetry } from "../domain/types";
-import type { TelemetryProvider } from "./TelemetryProvider";
+import type { AnalysisMetadata } from "../domain/metadataTypes";
+import type { LapTelemetry } from "../domain/telemetryTypes";
+import type {
+  Garage61ExampleDataProviderOptions,
+  TelemetryProvider,
+} from "./types";
 
-export interface Garage61ExampleDataProviderOptions {
-  fixtureDir?: string;
-}
+export type { Garage61ExampleDataProviderOptions } from "./types";
 
 export class Garage61ExampleDataProvider implements TelemetryProvider {
   private readonly fixtureDir: string;

@@ -1,15 +1,10 @@
-import { parseGarage61ZoomParam, type Garage61ZoomParseResult } from "./parseGarage61ZoomParam";
+import { parseGarage61ZoomParam } from "./parseGarage61ZoomParam";
+import type { Garage61AnalysisUrlState } from "./types";
 
 const ANALYSIS_ROUTE_NAMES = new Set(["analysis", "analyses"]);
 const GARAGE61_ID_PATTERN = /^[0-9A-HJKMNP-TV-Z]{26}$/i;
 
-export interface Garage61AnalysisUrlState {
-  url: string;
-  analysisId?: string;
-  isEligibleAnalysisRoute: boolean;
-  zoomRaw?: string;
-  zoom: Garage61ZoomParseResult;
-}
+export type { Garage61AnalysisUrlState } from "./types";
 
 export function parseGarage61AnalysisUrl(input: string | URL): Garage61AnalysisUrlState {
   const url = typeof input === "string" ? new URL(input, "https://garage61.net") : input;

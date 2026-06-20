@@ -4,8 +4,8 @@ import { lineRules } from "./line";
 import { stabilityRules } from "./stability";
 import { steeringRules } from "./steering";
 import { throttleRules } from "./throttle";
-import type { TelemetryComparison } from "../compareTelemetry";
-import type { CoachingFinding, RuleResult } from "../../domain/types";
+import type { TelemetryComparison } from "../comparisonTypes";
+import type { CoachingFinding, RuleResult } from "../../domain/reportTypes";
 
 export type RuleDefinition = (comparison: TelemetryComparison) => CoachingFinding | undefined;
 

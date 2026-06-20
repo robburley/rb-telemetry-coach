@@ -1,9 +1,10 @@
 import { compareTelemetry } from "./compareTelemetry";
 import { sortAndLinkFindings, runDeterministicRules } from "./rules";
 import { validateDistanceSlice } from "./slicing";
-import type { AnalysisConfig } from "./config";
 import { defaultAnalysisConfig } from "./config";
-import type { AnalysisReport, ComparisonContext } from "../domain/types";
+import type { AnalysisConfig } from "./configTypes";
+import type { ComparisonContext } from "../domain/comparisonContextTypes";
+import type { AnalysisReport } from "../domain/reportTypes";
 
 export function generateAnalysisReport(
   context: ComparisonContext,

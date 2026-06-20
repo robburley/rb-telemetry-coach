@@ -1,17 +1,7 @@
-import type { TrackInfo } from "../../domain/types";
+import type { TrackInfo } from "../../domain/metadataTypes";
+import type { Garage61TrackFixture } from "./types";
 
-export interface Garage61TrackFixture {
-  id: string | number;
-  platform?: string;
-  name: string;
-  variant?: string;
-  shortname?: string;
-  has_map?: boolean;
-  sectors?: number[];
-  lap_length?: number;
-  turns?: number;
-  bounds?: [number, number, number, number];
-}
+export type { Garage61TrackFixture } from "./types";
 
 export function normaliseGarage61Track(track: Garage61TrackFixture): TrackInfo {
   return {

@@ -2,9 +2,11 @@ import type {
   AnalysisReport,
   DistanceSlice,
   FindingSeverity,
+} from "../domain/reportTypes";
+import type {
   LapSummary,
   TrackInfo,
-} from "../domain/types";
+} from "../domain/metadataTypes";
 
 export function formatLapTime(seconds: number): string {
   if (!Number.isFinite(seconds) || seconds < 0) {

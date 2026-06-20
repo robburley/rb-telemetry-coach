@@ -1,10 +1,6 @@
-import type { TelemetryDtype } from "../../domain/types";
+import type { Garage61KnownChannelDefinition } from "./types";
 
-export interface Garage61KnownChannelDefinition {
-  id: number;
-  name: string;
-  dtype: TelemetryDtype;
-}
+export type { Garage61KnownChannelDefinition } from "./types";
 
 export const garage61KnownChannelDefinitions = [
   { id: 1, name: "speed_mps", dtype: "float32" },

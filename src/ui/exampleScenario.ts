@@ -1,10 +1,6 @@
 import {
-  type AnalysisMetadata,
-  type AnalysisReport,
-  type ComparisonLapRoles,
-  type DistanceSlice,
   type LapTelemetry,
-} from "../domain/types";
+} from "../domain/telemetryTypes";
 import {
   decodeGarage61TelemetryBinary,
   parseGarage61TdfDataUrlFixture,
@@ -25,6 +21,9 @@ import analysisFixture from "../../example-data/api-internal-analyses-01KVBECPC8
 import targetTdfRaw from "../../example-data/api-internal-laps-01KVBPNG1EVNB3D9310P6X2J1K-tdf.txt?raw";
 import referenceTdfRaw from "../../example-data/api-internal-laps-01KVBPW12Z5WJY1W33G47N95KW-tdf.txt?raw";
 import trackFixture from "../../example-data/api-internal-tracks-67.json";
+import type { AnalyzeZoomResult, ExampleScenario } from "./types";
+
+export type { AnalyzeZoomResult, ExampleScenario } from "./types";
 
 export const exampleAnalysisId = "01KVBECPC8BM15DJ7X80X1RGCT";
 export const defaultZoomInput = "354-1200";
@@ -47,18 +46,6 @@ const tdfFixtures = new Map<string, { name: string; raw: string }>([
 ]);
 
 let scenarioCache: ExampleScenario | undefined;
-
-export interface ExampleScenario {
-  analysis: AnalysisMetadata;
-  roles: ComparisonLapRoles;
-  reference: LapTelemetry;
-  target: LapTelemetry;
-}
-
-export interface AnalyzeZoomResult {
-  report: AnalysisReport;
-  slice?: DistanceSlice;
-}
 
 export function loadExampleScenario(): ExampleScenario {
   if (scenarioCache) {

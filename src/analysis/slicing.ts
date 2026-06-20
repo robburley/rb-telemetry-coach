@@ -1,12 +1,15 @@
 import type {
   AnalysisReportStatus,
   DistanceSlice,
+} from "../domain/reportTypes";
+import type {
   LapTelemetry,
   LapTelemetryChannels,
   SliceTelemetry,
   TelemetryChannelAvailability,
-} from "../domain/types";
-import { defaultAnalysisConfig, type SlicingConfig } from "./config";
+} from "../domain/telemetryTypes";
+import { defaultAnalysisConfig } from "./config";
+import type { SlicingConfig } from "./configTypes";
 
 const SLICE_LENGTH_EPSILON = 1e-9;
 

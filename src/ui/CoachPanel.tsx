@@ -1,9 +1,9 @@
+import type { LapSummary } from "../domain/metadataTypes";
 import type {
   AnalysisReport,
   CoachingFinding,
   DistanceSlice,
-  LapSummary,
-} from "../domain/types";
+} from "../domain/reportTypes";
 import {
   formatLapTime,
   formatSignedDelta,

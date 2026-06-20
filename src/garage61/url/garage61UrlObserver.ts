@@ -1,40 +1,19 @@
 import {
   parseGarage61AnalysisUrl,
-  type Garage61AnalysisUrlState,
 } from "./parseGarage61AnalysisUrl";
+import type {
+  Garage61UrlObserverHandle,
+  Garage61UrlObserverOptions,
+  Garage61UrlObserverSnapshot,
+} from "./types";
 
 type HistoryMethod = "pushState" | "replaceState";
 
-interface ObservableHistory {
-  pushState: History["pushState"];
-  replaceState: History["replaceState"];
-}
-
-interface ObservableLocation {
-  href: string;
-}
-
-interface ObservableWindow {
-  history: ObservableHistory;
-  location: ObservableLocation;
-  addEventListener: (type: "popstate", listener: () => void) => void;
-  removeEventListener: (type: "popstate", listener: () => void) => void;
-}
-
-export interface Garage61UrlObserverSnapshot {
-  href: string;
-  route: Garage61AnalysisUrlState;
-}
-
-export interface Garage61UrlObserverOptions {
-  window?: ObservableWindow;
-  emitInitial?: boolean;
-}
-
-export interface Garage61UrlObserverHandle {
-  disconnect: () => void;
-  current: () => Garage61UrlObserverSnapshot;
-}
+export type {
+  Garage61UrlObserverHandle,
+  Garage61UrlObserverOptions,
+  Garage61UrlObserverSnapshot,
+} from "./types";
 
 export function observeGarage61UrlChanges(
   onChange: (snapshot: Garage61UrlObserverSnapshot) => void,

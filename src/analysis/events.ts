@@ -1,5 +1,6 @@
-import type { DetectedDrivingEvents, ResampledTelemetry } from "../domain/types";
-import { defaultAnalysisConfig, type EventDetectionConfig } from "./config";
+import type { DetectedDrivingEvents, ResampledTelemetry } from "../domain/telemetryTypes";
+import { defaultAnalysisConfig } from "./config";
+import type { EventDetectionConfig } from "./configTypes";
 
 export function detectDrivingEvents(
   telemetry: ResampledTelemetry,

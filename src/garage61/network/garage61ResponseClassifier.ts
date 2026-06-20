@@ -1,33 +1,13 @@
-export type Garage61CapturedResponseKind = "analysis" | "track" | "lap-tdf";
+import type { Garage61ResponseClassification } from "./types";
 
-export type Garage61ResponseClassification =
-  | Garage61AnalysisResponseClassification
-  | Garage61TrackResponseClassification
-  | Garage61LapTdfResponseClassification
-  | Garage61UnknownResponseClassification;
-
-export interface Garage61AnalysisResponseClassification {
-  kind: "analysis";
-  analysisId: string;
-  url: string;
-}
-
-export interface Garage61TrackResponseClassification {
-  kind: "track";
-  trackId: string;
-  url: string;
-}
-
-export interface Garage61LapTdfResponseClassification {
-  kind: "lap-tdf";
-  lapId: string;
-  url: string;
-}
-
-export interface Garage61UnknownResponseClassification {
-  kind: "unknown";
-  url: string;
-}
+export type {
+  Garage61AnalysisResponseClassification,
+  Garage61CapturedResponseKind,
+  Garage61LapTdfResponseClassification,
+  Garage61ResponseClassification,
+  Garage61TrackResponseClassification,
+  Garage61UnknownResponseClassification,
+} from "./types";
 
 const GARAGE61_ID_PATTERN = /^[0-9A-HJKMNP-TV-Z]{26}$/i;
 

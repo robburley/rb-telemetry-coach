@@ -1,4 +1,5 @@
-import type { AnalysisMetadata, ComparisonLapRoles } from "../domain/types";
+import type { ComparisonLapRoles } from "../domain/comparisonContextTypes";
+import type { AnalysisMetadata } from "../domain/metadataTypes";
 
 export const activeLapCountUnsupportedReason = "active_lap_count";
 

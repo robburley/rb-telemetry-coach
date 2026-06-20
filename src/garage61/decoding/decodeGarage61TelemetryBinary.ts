@@ -3,8 +3,9 @@ import type {
   DecodedGarage61Channel,
   DecodedGarage61Telemetry,
   TelemetryDtype,
-} from "../../domain/types";
+} from "../../domain/telemetryTypes";
 import { garage61KnownChannelById } from "./garage61ChannelDefinitions";
+import type { Garage61TelemetryDecodeErrorCode } from "./types";
 
 const MAGIC_BYTES = [0xf0, 0x9f, 0x8f, 0x8e];
 const MAGIC_TEXT = "🏎";
@@ -13,13 +14,7 @@ const HEADER_MIN_LENGTH = 18;
 const DESCRIPTOR_LENGTH_OFFSET = 16;
 const EXPECTED_FORMAT_BYTES = [0x64, 0x66, 0x04];
 
-export type Garage61TelemetryDecodeErrorCode =
-  | "invalid_magic"
-  | "unsupported_descriptor"
-  | "channel_length_mismatch"
-  | "unexpected_eof"
-  | "trailing_bytes"
-  | "unsupported_dtype";
+export type { Garage61TelemetryDecodeErrorCode } from "./types";
 
 export class Garage61TelemetryDecodeError extends Error {
   constructor(

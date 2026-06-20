@@ -1,5 +1,6 @@
-import { defaultAnalysisConfig, type AnalysisConfig } from "./config";
-import type { ResampledTelemetry } from "../domain/types";
+import { defaultAnalysisConfig } from "./config";
+import type { AnalysisConfig } from "./configTypes";
+import type { ResampledTelemetry } from "../domain/telemetryTypes";
 
 export function smoothResampledTelemetry(
   telemetry: ResampledTelemetry,

@@ -1,6 +1,8 @@
-import { defaultAnalysisConfig, type AnalysisConfig } from "./config";
+import { defaultAnalysisConfig } from "./config";
+import type { AnalysisConfig } from "./configTypes";
 import { sliceLapTelemetry } from "./slicing";
-import type { DistanceSlice, LapTelemetry, ResampledTelemetry } from "../domain/types";
+import type { DistanceSlice } from "../domain/reportTypes";
+import type { LapTelemetry, ResampledTelemetry } from "../domain/telemetryTypes";
 
 export interface ResampleTelemetryOptions {
   lapLengthM?: number;

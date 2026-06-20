@@ -4,11 +4,9 @@ import {
   ComparisonLapResolutionError,
   resolveComparisonLaps,
 } from "../analysis/resolveComparisonLaps";
-import type {
-  AnalysisMetadata,
-  AnalysisReport,
-  ComparisonLapRoles,
-} from "../domain/types";
+import type { ComparisonLapRoles } from "../domain/comparisonContextTypes";
+import type { AnalysisMetadata } from "../domain/metadataTypes";
+import type { AnalysisReport } from "../domain/reportTypes";
 import {
   observeGarage61UrlChanges,
   parseGarage61AnalysisUrl,

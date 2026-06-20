@@ -1,22 +1,8 @@
-import type { AnalysisReportStatus, DistanceSlice } from "../../domain/types";
+import type { Garage61ZoomParseResult } from "./types";
 
 const GARAGE61_ZOOM_TICK_SCALE = 10000;
 
-export type Garage61ZoomParseReason =
-  | "missing_slice"
-  | "invalid_zoom"
-  | "out_of_range";
-
-export type Garage61ZoomParseResult =
-  | {
-      status: "slice";
-      slice: DistanceSlice;
-    }
-  | {
-      status: Exclude<AnalysisReportStatus, "complete" | "unavailable">;
-      reason: Garage61ZoomParseReason;
-      raw?: string;
-    };
+export type { Garage61ZoomParseReason, Garage61ZoomParseResult } from "./types";
 
 export function parseGarage61ZoomParam(
   z: string | undefined | null,

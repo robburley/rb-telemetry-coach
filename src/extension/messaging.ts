@@ -1,18 +1,6 @@
-import type { Garage61AnalysisUrlState } from "../garage61/url";
-import type { Garage61CapturedResponse } from "../garage61/network";
+import type { ExtensionMessage } from "./types";
 
-export type ExtensionMessage =
-  | {
-      type: "garage61-route-changed";
-      route: Garage61AnalysisUrlState;
-    }
-  | {
-      type: "garage61-response-captured";
-      response: Garage61CapturedResponse;
-    }
-  | {
-      type: "garage61-panel-ready";
-    };
+export type { ExtensionMessage } from "./types";
 
 interface ChromeRuntimeLike {
   runtime?: {

@@ -1,4 +1,4 @@
-import type { DistanceSlice, EvidenceItem } from "../domain/types";
+import type { DistanceSlice, EvidenceItem } from "../domain/reportTypes";
 
 export function formatDistanceDelta(deltaM: number | undefined): string {
   if (deltaM === undefined) {

@@ -1,39 +1,18 @@
 import { parseGarage61AnalysisUrl } from "../url";
-import {
-  classifyGarage61ResponseUrl,
-  type Garage61ResponseClassification,
-} from "./garage61ResponseClassifier";
+import { classifyGarage61ResponseUrl } from "./garage61ResponseClassifier";
+import type {
+  Garage61PageResponseObserver,
+  Garage61PageResponseObserverOptions,
+  Garage61ResponseClassification,
+} from "./types";
 
-export type Garage61CapturedResponse =
-  | Garage61CapturedJsonResponse
-  | Garage61CapturedTdfResponse;
-
-export interface Garage61CapturedJsonResponse {
-  kind: "analysis" | "track";
-  url: string;
-  capturedAtMs: number;
-  routeAnalysisId?: string;
-  body: unknown;
-}
-
-export interface Garage61CapturedTdfResponse {
-  kind: "lap-tdf";
-  url: string;
-  capturedAtMs: number;
-  routeAnalysisId?: string;
-  lapId: string;
-  body: ArrayBuffer;
-}
-
-export interface Garage61PageResponseObserver {
-  disconnect(): void;
-}
-
-export interface Garage61PageResponseObserverOptions {
-  window?: Window;
-  onCapturedResponse: (response: Garage61CapturedResponse) => void;
-  onError?: (error: unknown) => void;
-}
+export type {
+  Garage61CapturedJsonResponse,
+  Garage61CapturedResponse,
+  Garage61CapturedTdfResponse,
+  Garage61PageResponseObserver,
+  Garage61PageResponseObserverOptions,
+} from "./types";
 
 type FetchLike = typeof fetch;
 type ObservableWindow = Window & {

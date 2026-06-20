@@ -25,6 +25,8 @@ The app is TypeScript-first and uses Vite for both the local development UI and 
 
 Prefer feature-oriented modules and keep imports flowing through existing index files where that is already the local pattern.
 
+Shared TypeScript contracts should live in focused type files near their feature boundary. Domain contracts are split across `src/domain/metadataTypes.ts`, `src/domain/telemetryTypes.ts`, `src/domain/reportTypes.ts`, and `src/domain/comparisonContextTypes.ts`; analysis config and comparison metric contracts live in `src/analysis/configTypes.ts` and `src/analysis/comparisonTypes.ts`; Garage 61, provider, extension, and UI boundary contracts use local `types.ts` files. Keep compatibility re-exports from existing public paths such as `src/domain/types.ts`, `src/analysis/config.ts`, and `src/analysis/compareTelemetry.ts` unless a later public API review explicitly removes them.
+
 ## Build, Test, and Development Commands
 
 - `npm install` installs the project dependencies from `package-lock.json`.

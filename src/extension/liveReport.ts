@@ -1,19 +1,10 @@
 import { generateAnalysisReport } from "../analysis/report";
 import { validateDistanceSlice } from "../analysis/slicing";
-import type {
-  AnalysisMetadata,
-  AnalysisReport,
-  ComparisonLapRoles,
-} from "../domain/types";
+import type { AnalysisReport } from "../domain/reportTypes";
 import { parseGarage61ZoomParam } from "../garage61/url";
-import type { TelemetryProvider } from "../providers/TelemetryProvider";
+import type { GenerateLiveReportOptions } from "./types";
 
-export interface GenerateLiveReportOptions {
-  analysis: AnalysisMetadata;
-  roles: ComparisonLapRoles;
-  provider: Pick<TelemetryProvider, "getLapTelemetry">;
-  zoomRaw: string | undefined | null;
-}
+export type { GenerateLiveReportOptions } from "./types";
 
 export async function generateLiveReportForZoom({
   analysis,

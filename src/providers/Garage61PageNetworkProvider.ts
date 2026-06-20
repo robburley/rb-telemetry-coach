@@ -1,4 +1,5 @@
-import type { AnalysisMetadata, LapTelemetry } from "../domain/types";
+import type { AnalysisMetadata } from "../domain/metadataTypes";
+import type { LapTelemetry } from "../domain/telemetryTypes";
 import {
   decodeGarage61TelemetryBinary,
   type Garage61AnalysisFixture,
@@ -7,7 +8,12 @@ import {
   normaliseGarage61Analysis,
   normaliseGarage61Telemetry,
 } from "../garage61";
-import type { TelemetryProvider } from "./TelemetryProvider";
+import type {
+  Garage61PageNetworkProviderOptions,
+  TelemetryProvider,
+} from "./types";
+
+export type { Garage61PageNetworkProviderOptions } from "./types";
 
 interface CapturedAnalysisSession {
   id: string;
@@ -21,11 +27,6 @@ interface PendingTdfCapture {
   routeAnalysisId?: string;
   body: ArrayBuffer;
   capturedAtMs: number;
-}
-
-export interface Garage61PageNetworkProviderOptions {
-  now?: () => number;
-  pendingTdfTtlMs?: number;
 }
 
 const DEFAULT_PENDING_TDF_TTL_MS = 45_000;
