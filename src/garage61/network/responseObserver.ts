@@ -41,20 +41,12 @@ type ObservableWindow = Window & {
   XMLHttpRequest: typeof XMLHttpRequest;
 };
 
-const DEBUG_PREFIX = "[Garage61 Telemetry Coach]";
-
 export function observeGarage61PageResponses(
   options: Garage61PageResponseObserverOptions,
 ): Garage61PageResponseObserver {
   const win = (options.window ?? window) as ObservableWindow;
   const originalFetch = win.fetch.bind(win);
   const OriginalXhr = win.XMLHttpRequest;
-
-  logDebug("Installing passive page response observer", {
-    href: win.location.href,
-    hasFetch: typeof win.fetch === "function",
-    hasXhr: typeof win.XMLHttpRequest === "function",
-  });
 
   win.fetch = patchFetch(originalFetch, win, options) as FetchLike;
   win.XMLHttpRequest = makeObservedXmlHttpRequest(
@@ -65,7 +57,6 @@ export function observeGarage61PageResponses(
 
   return {
     disconnect() {
-      logDebug("Disconnecting passive page response observer");
       win.fetch = originalFetch;
       win.XMLHttpRequest = OriginalXhr;
     },
@@ -80,11 +71,6 @@ function patchFetch(
   return (async (...args: Parameters<FetchLike>) => {
     const response = await originalFetch(...args);
     const requestUrl = requestInfoToUrl(args[0]) ?? response.url;
-    logDebug("fetch completed", {
-      requestUrl,
-      responseUrl: response.url,
-      status: response.status,
-    });
     void captureResponse(requestUrl, response, win, options);
     return response;
   }) as FetchLike;
@@ -106,18 +92,11 @@ function makeObservedXmlHttpRequest(
       password?: string | null,
     ): void {
       this.requestUrl = String(url);
-      logDebug("XHR open", { method, url: this.requestUrl });
       super.open(method, url, async ?? true, username ?? null, password ?? null);
     }
 
     send(body?: Document | XMLHttpRequestBodyInit | null): void {
       this.addEventListener("load", () => {
-        logDebug("XHR load", {
-          requestUrl: this.requestUrl,
-          responseURL: this.responseURL,
-          status: this.status,
-          responseType: this.responseType,
-        });
         void captureXhrResponse(this, this.requestUrl, win, options);
       });
       super.send(body);
@@ -133,7 +112,6 @@ async function captureXhrResponse(
 ): Promise<void> {
   try {
     const classification = classifyGarage61ResponseUrl(requestUrl ?? xhr.responseURL);
-    logDebug("Classified XHR response", classification);
     if (classification.kind === "unknown") {
       return;
     }
@@ -141,10 +119,6 @@ async function captureXhrResponse(
     if (classification.kind === "lap-tdf") {
       const body = xhrResponseToArrayBuffer(xhr.response);
       if (!body) {
-        logDebug("Skipped XHR TDF capture because response body was not readable", {
-          responseType: xhr.responseType,
-          responseURL: xhr.responseURL,
-        });
         return;
       }
       emitCapturedResponse(classification, body, win, options);
@@ -156,7 +130,6 @@ async function captureXhrResponse(
       emitCapturedResponse(classification, body, win, options);
     }
   } catch (error) {
-    logDebug("Failed to capture XHR response", error);
     options.onError?.(error);
   }
 }
@@ -169,26 +142,19 @@ async function captureResponse(
 ): Promise<void> {
   try {
     const classification = classifyGarage61ResponseUrl(requestUrl);
-    logDebug("Classified fetch response", classification);
     if (classification.kind === "unknown") {
       return;
     }
 
     if (classification.kind === "lap-tdf") {
       const body = await response.clone().arrayBuffer();
-      logDebug("Cloned fetch TDF body", {
-        lapId: classification.lapId,
-        byteLength: body.byteLength,
-      });
       emitCapturedResponse(classification, body, win, options);
       return;
     }
 
     const body = await response.clone().json();
-    logDebug("Cloned fetch JSON body", { kind: classification.kind });
     emitCapturedResponse(classification, body, win, options);
   } catch (error) {
-    logDebug("Failed to capture fetch response", error);
     options.onError?.(error);
   }
 }
@@ -203,11 +169,6 @@ function emitCapturedResponse(
   const capturedAtMs = Date.now();
 
   if (classification.kind === "lap-tdf" && body instanceof ArrayBuffer) {
-    logDebug("Emitting captured TDF response", {
-      lapId: classification.lapId,
-      routeAnalysisId,
-      byteLength: body.byteLength,
-    });
     options.onCapturedResponse({
       kind: "lap-tdf",
       url: classification.url,
@@ -220,10 +181,6 @@ function emitCapturedResponse(
   }
 
   if (classification.kind === "analysis" || classification.kind === "track") {
-    logDebug("Emitting captured JSON response", {
-      kind: classification.kind,
-      routeAnalysisId,
-    });
     options.onCapturedResponse({
       kind: classification.kind,
       url: classification.url,
@@ -266,10 +223,6 @@ function xhrJsonResponseBody(xhr: XMLHttpRequest): unknown {
     return xhr.response;
   }
 
-  logDebug("Skipped JSON capture because XHR responseType is not text/json", {
-    responseType: xhr.responseType,
-    responseURL: xhr.responseURL,
-  });
   return undefined;
 }
 
@@ -278,13 +231,4 @@ function xhrResponseToJson(response: unknown): unknown {
     return JSON.parse(response);
   }
   return response;
-}
-
-function logDebug(message: string, details?: unknown): void {
-  if (details === undefined) {
-    console.info(DEBUG_PREFIX, message);
-    return;
-  }
-
-  console.info(DEBUG_PREFIX, message, details);
 }

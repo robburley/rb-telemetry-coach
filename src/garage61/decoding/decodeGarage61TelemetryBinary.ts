@@ -48,6 +48,7 @@ export function decodeGarage61TelemetryBinary(
   input: ArrayBuffer | ArrayBufferView,
 ): DecodedGarage61Telemetry {
   const bytes = normaliseGarage61TelemetryPayload(input);
+
   if (bytes.byteLength < HEADER_MIN_LENGTH) {
     throwDecodeError("unexpected_eof", "TDF payload is too short for a header");
   }
@@ -64,9 +65,8 @@ export function decodeGarage61TelemetryBinary(
     );
   }
 
-  const descriptorBlock = parseDescriptorBlock(
-    bytes.subarray(descriptorStart, descriptorEnd),
-  );
+  const subBytes = bytes.subarray(descriptorStart, descriptorEnd);
+  const descriptorBlock = parseDescriptorBlock(subBytes);
 
   let rawOffset = descriptorEnd;
   const channels: DecodedGarage61Channel[] = [];
@@ -145,11 +145,33 @@ export function normaliseGarage61TelemetryPayload(
 }
 
 function toUint8Array(input: ArrayBuffer | ArrayBufferView): Uint8Array {
-  if (input instanceof ArrayBuffer) {
-    return new Uint8Array(input);
+// ArrayBufferView path: Uint8Array, DataView, etc.
+  if (ArrayBuffer.isView(input)) {
+    const view = input as ArrayBufferView;
+    const source = new Uint8Array(
+      view.buffer,
+      view.byteOffset,
+      view.byteLength
+    );
+
+    const local = new Uint8Array(source.byteLength);
+
+    for (let i = 0; i < source.byteLength; i++) {
+      local[i] = source[i];
+    }
+
+    return local;
   }
 
-  return new Uint8Array(input.buffer, input.byteOffset, input.byteLength);
+  // ArrayBuffer path.
+  const source = new Uint8Array(input);
+  const local = new Uint8Array(source.byteLength);
+
+  for (let i = 0; i < source.byteLength; i++) {
+    local[i] = source[i];
+  }
+
+  return local;
 }
 
 function hasMagicBytes(bytes: Uint8Array): boolean {
