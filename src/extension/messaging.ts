@@ -35,34 +35,13 @@ interface ChromeRuntimeLike {
   };
 }
 
-const DEBUG_PREFIX = "[Garage61 Telemetry Coach]";
-const NO_RUNTIME_RECEIVER_MESSAGE =
-  "Could not establish connection. Receiving end does not exist.";
-
 export function sendExtensionMessage(message: ExtensionMessage): void {
   const chromeApi = (globalThis as { chrome?: ChromeRuntimeLike }).chrome;
   if (!chromeApi?.runtime?.sendMessage) {
-    console.warn(DEBUG_PREFIX, "chrome.runtime.sendMessage is unavailable", {
-      type: message.type,
-    });
     return;
   }
 
-  console.info(DEBUG_PREFIX, "Sending extension runtime message", {
-    type: message.type,
-  });
   chromeApi.runtime.sendMessage(message, () => {
-    const lastError = chromeApi.runtime?.lastError;
-    if (lastError) {
-      const log = lastError.message === NO_RUNTIME_RECEIVER_MESSAGE
-        ? console.info
-        : console.warn;
-      log(DEBUG_PREFIX, "Runtime message reported lastError", {
-        type: message.type,
-        message: lastError.message,
-        expectedWithoutBackgroundReceiver:
-          lastError.message === NO_RUNTIME_RECEIVER_MESSAGE,
-      });
-    }
+    void chromeApi.runtime?.lastError;
   });
 }

@@ -27,7 +27,6 @@ import {
 import { generateLiveReportForZoom } from "./liveReport";
 
 const ROOT_ID = "__rb_telemetry_coach_root";
-const DEBUG_PREFIX = "[Garage61 Telemetry Coach]";
 
 interface LiveScenario {
   analysis: AnalysisMetadata;
@@ -36,15 +35,8 @@ interface LiveScenario {
 
 function injectCoachPanel(): void {
   if (document.getElementById(ROOT_ID)) {
-    console.info(DEBUG_PREFIX, "Coach panel host already exists", {
-      href: window.location.href,
-    });
     return;
   }
-
-  console.info(DEBUG_PREFIX, "Injecting coach panel", {
-    href: window.location.href,
-  });
 
   const host = document.createElement("div");
   host.id = ROOT_ID;
@@ -69,8 +61,6 @@ function injectCoachPanel(): void {
       <ExtensionPanel />
     </StrictMode>,
   );
-
-  console.info(DEBUG_PREFIX, "Coach panel mounted");
 }
 
 function ExtensionPanel(): JSX.Element {
@@ -109,15 +99,6 @@ function ExtensionPanel(): JSX.Element {
           provider.hasCapturedLapTelemetry(roles.targetLapId);
         setHasLiveTelemetry(nextHasLiveTelemetry);
         setError(undefined);
-        console.info(DEBUG_PREFIX, "Loaded live captured scenario", {
-          analysisId: analysis.id,
-          track: analysis.track.name,
-          car: analysis.car.name,
-          referenceLapId: roles.referenceLapId,
-          targetLapId: roles.targetLapId,
-          hasReferenceTelemetry: provider.hasCapturedLapTelemetry(roles.referenceLapId),
-          hasTargetTelemetry: provider.hasCapturedLapTelemetry(roles.targetLapId),
-        });
       } catch (caught) {
         setHasLiveTelemetry(false);
         if (caught instanceof ComparisonLapResolutionError) {
@@ -129,16 +110,8 @@ function ExtensionPanel(): JSX.Element {
             findings: [],
           });
           setError(undefined);
-          console.info(DEBUG_PREFIX, "Live scenario is unsupported", {
-            analysisId,
-            reason: caught.message,
-          });
           return;
         }
-        console.info(DEBUG_PREFIX, "Live scenario is not ready yet", {
-          analysisId,
-          reason: caught instanceof Error ? caught.message : String(caught),
-        });
       }
     },
     [provider],
@@ -179,12 +152,6 @@ function ExtensionPanel(): JSX.Element {
 
           setReport(nextReport);
           lastAnalyzedRouteState.current = analyzedKey;
-          console.info(DEBUG_PREFIX, "Generated live report", {
-            analysisId: scenario.analysis.id,
-            zoom: zoomRaw,
-            source,
-            status: nextReport.status,
-          });
         } catch (caught) {
           if (activeReportRequestId.current !== requestId) {
             return;
@@ -203,10 +170,7 @@ function ExtensionPanel(): JSX.Element {
   );
 
   useEffect(() => {
-    console.info(DEBUG_PREFIX, "Extension panel effect started; waiting for main-world page observer messages");
-
     function applyRouteSnapshot(snapshot: { route: Garage61AnalysisUrlState }): void {
-      console.info(DEBUG_PREFIX, "Observed Garage 61 route change", snapshot.route);
       setRoute(snapshot.route);
       if (snapshot.route.isEligibleAnalysisRoute) {
         void refreshLiveScenario(snapshot.route.analysisId);
@@ -220,20 +184,15 @@ function ExtensionPanel(): JSX.Element {
 
     const onCapturedResponse = (event: MessageEvent<unknown>) => {
       if (event.source !== window) {
-        console.info(DEBUG_PREFIX, "Ignored message from non-window source");
         return;
       }
       const data = event.data as Partial<Garage61TelemetryCoachWindowMessage>;
       if (data.source !== "garage61-telemetry-coach") {
-        if (data.source === "garage61-telemetry-coach") {
-          console.warn(DEBUG_PREFIX, "Ignored malformed capture message", data);
-        }
         return;
       }
 
       if (data.type === GARAGE61_ROUTE_CHANGED_EVENT) {
         if (!data.snapshot) {
-          console.warn(DEBUG_PREFIX, "Ignored malformed route message", data);
           return;
         }
 
@@ -242,15 +201,9 @@ function ExtensionPanel(): JSX.Element {
       }
 
       if (data.type !== GARAGE61_CAPTURED_RESPONSE_EVENT || !data.response) {
-        console.warn(DEBUG_PREFIX, "Ignored malformed capture message", data);
         return;
       }
 
-      console.info(DEBUG_PREFIX, "Received captured response from page bridge", {
-        kind: data.response.kind,
-        url: data.response.url,
-        routeAnalysisId: data.response.routeAnalysisId,
-      });
       provider.ingestCapturedResponse(data.response);
       const currentRoute = parseGarage61AnalysisUrl(window.location.href);
       if (currentRoute.isEligibleAnalysisRoute) {
@@ -261,7 +214,6 @@ function ExtensionPanel(): JSX.Element {
     window.addEventListener("message", onCapturedResponse);
 
     return () => {
-      console.info(DEBUG_PREFIX, "Extension panel cleanup");
       observer.disconnect();
       window.removeEventListener("message", onCapturedResponse);
     };
