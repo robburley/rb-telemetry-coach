@@ -13,7 +13,10 @@ const referenceLapId = "01KVBPW12Z5WJY1W33G47N95KW";
 const targetLapId = "01KVBPNG1EVNB3D9310P6X2J1K";
 
 async function readTdfFixture(lapId: string): Promise<Uint8Array> {
-  const fixtureName = `api-internal-laps-${lapId}-tdf.txt`;
+  return readTdfFixtureByName(`api-internal-laps-${lapId}-tdf.txt`);
+}
+
+async function readTdfFixtureByName(fixtureName: string): Promise<Uint8Array> {
   const text = await readFile(join(fixtureDir, fixtureName), "utf8");
   return parseGarage61TdfDataUrlFixture(text, fixtureName);
 }
@@ -35,22 +38,31 @@ async function readReferenceGolden(): Promise<{
 }
 
 describe("parseGarage61TdfDataUrlFixture", () => {
-  it("parses copied data URL fixtures into bytes", async () => {
+  it("parses copied Chrome data URL fixtures into bytes", async () => {
     const bytes = await readTdfFixture(referenceLapId);
 
     expect([...bytes.subarray(0, 4)]).toEqual([0xf0, 0x9f, 0x8f, 0x8e]);
     expect(bytes.byteLength).toBeGreaterThan(400_000);
   });
 
-  it("fails loudly when the data URL prefix is missing", () => {
+  it("parses copied Firefox raw base64 fixtures into bytes", async () => {
+    const [chrome, firefox] = await Promise.all([
+      readTdfFixtureByName(`api-internal-laps-${referenceLapId}-tdf.txt`),
+      readTdfFixtureByName(`firefox-api-internal-laps-${referenceLapId}-tdf.txt`),
+    ]);
+
+    expect(firefox).toEqual(chrome);
+  });
+
+  it("fails loudly when the text payload is not base64", () => {
     expect(() => parseGarage61TdfDataUrlFixture("not-a-data-url")).toThrow(
-      /missing required/,
+      /base64 payload is malformed/,
     );
   });
 });
 
 describe("decodeGarage61TelemetryBinary", () => {
-  it("decodes both raw TDF fixtures successfully", async () => {
+  it("decodes both Chrome raw TDF fixtures successfully", async () => {
     const [reference, target] = await Promise.all([
       readTdfFixture(referenceLapId),
       readTdfFixture(targetLapId),
@@ -69,6 +81,32 @@ describe("decodeGarage61TelemetryBinary", () => {
     });
     expect(decodedTarget.meta.sampleCount).toBe(6562);
     expect(decodedTarget.meta.rawDataEnd).toBe(target.byteLength);
+  });
+
+  it("decodes Firefox raw base64 TDF response bodies successfully", async () => {
+    const [referenceText, targetText] = await Promise.all([
+      readFile(
+        join(fixtureDir, `firefox-api-internal-laps-${referenceLapId}-tdf.txt`),
+        "utf8",
+      ),
+      readFile(
+        join(fixtureDir, `firefox-api-internal-laps-${targetLapId}-tdf.txt`),
+        "utf8",
+      ),
+    ]);
+
+    const decodedReference = decodeGarage61TelemetryBinary(
+      new TextEncoder().encode(referenceText),
+    );
+    const decodedTarget = decodeGarage61TelemetryBinary(
+      new TextEncoder().encode(targetText),
+    );
+
+    expect(decodedReference.meta).toMatchObject({
+      sampleCount: 6500,
+      rawDataStart: 379,
+    });
+    expect(decodedTarget.meta.sampleCount).toBe(6562);
   });
 
   it("decodes known channels and preserves unknown channels", async () => {

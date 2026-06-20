@@ -59,6 +59,29 @@ describe("Garage61PageNetworkProvider", () => {
     expect(telemetry.sampleCount).toBe(6500);
   });
 
+  it("accepts Firefox-style base64 text TDF captures", async () => {
+    const provider = new Garage61PageNetworkProvider();
+    const analysis = await readAnalysisFixture();
+    const track = await readTrackFixture();
+    const referenceText = await readFile(
+      join(fixtureDir, `firefox-api-internal-laps-${referenceLapId}-tdf.txt`),
+      "utf8",
+    );
+
+    ingestAnalysisAndTrack(provider, analysis, track);
+    ingestTdf(
+      provider,
+      referenceLapId,
+      new TextEncoder().encode(referenceText).buffer,
+    );
+
+    await expect(provider.getLapTelemetry(referenceLapId)).resolves.toMatchObject({
+      lapId: referenceLapId,
+      sampleCount: 6500,
+      source: { provider: "garage61-page-network" },
+    });
+  });
+
   it("uses track metadata captured before authoritative analysis metadata", async () => {
     const provider = new Garage61PageNetworkProvider();
     const analysis = await readAnalysisFixture();

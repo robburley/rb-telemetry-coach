@@ -8,6 +8,7 @@ import { garage61KnownChannelById } from "./garage61ChannelDefinitions";
 
 const MAGIC_BYTES = [0xf0, 0x9f, 0x8f, 0x8e];
 const MAGIC_TEXT = "🏎";
+const GARAGE61_TDF_DATA_URL_PREFIX = "data:application/octet-stream;base64,";
 const HEADER_MIN_LENGTH = 18;
 const DESCRIPTOR_LENGTH_OFFSET = 16;
 const EXPECTED_FORMAT_BYTES = [0x64, 0x66, 0x04];
@@ -46,7 +47,7 @@ interface VarintResult {
 export function decodeGarage61TelemetryBinary(
   input: ArrayBuffer | ArrayBufferView,
 ): DecodedGarage61Telemetry {
-  const bytes = toUint8Array(input);
+  const bytes = normaliseGarage61TelemetryPayload(input);
   if (bytes.byteLength < HEADER_MIN_LENGTH) {
     throwDecodeError("unexpected_eof", "TDF payload is too short for a header");
   }
@@ -123,12 +124,82 @@ export function decodeGarage61TelemetryBinary(
   };
 }
 
+export function normaliseGarage61TelemetryPayload(
+  input: ArrayBuffer | ArrayBufferView | string,
+): Uint8Array {
+  if (typeof input === "string") {
+    return decodeTextPayload(input);
+  }
+
+  const bytes = toUint8Array(input);
+  if (hasMagicBytes(bytes)) {
+    return bytes;
+  }
+
+  const text = decodeUtf8Text(bytes);
+  if (!text) {
+    return bytes;
+  }
+
+  return decodeTextPayload(text, bytes);
+}
+
 function toUint8Array(input: ArrayBuffer | ArrayBufferView): Uint8Array {
   if (input instanceof ArrayBuffer) {
     return new Uint8Array(input);
   }
 
   return new Uint8Array(input.buffer, input.byteOffset, input.byteLength);
+}
+
+function hasMagicBytes(bytes: Uint8Array): boolean {
+  if (bytes.byteLength < MAGIC_BYTES.length) {
+    return false;
+  }
+
+  return MAGIC_BYTES.every((byte, index) => bytes[index] === byte);
+}
+
+function decodeTextPayload(text: string, fallback?: Uint8Array): Uint8Array {
+  const trimmed = text.trim();
+  const payload = trimmed.startsWith(GARAGE61_TDF_DATA_URL_PREFIX)
+    ? trimmed.slice(GARAGE61_TDF_DATA_URL_PREFIX.length)
+    : trimmed;
+
+  if (!payload) {
+    throw new Error("TDF base64 payload is empty");
+  }
+
+  if (!/^[A-Za-z0-9+/]+={0,2}$/u.test(payload) || payload.length % 4 !== 0) {
+    if (fallback) {
+      return fallback;
+    }
+
+    throw new Error("TDF base64 payload is malformed");
+  }
+
+  return decodeBase64(payload);
+}
+
+function decodeUtf8Text(bytes: Uint8Array): string | undefined {
+  try {
+    return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  } catch {
+    return undefined;
+  }
+}
+
+function decodeBase64(payload: string): Uint8Array {
+  if (typeof Buffer !== "undefined") {
+    return Uint8Array.from(Buffer.from(payload, "base64"));
+  }
+
+  const binary = globalThis.atob(payload);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+  return bytes;
 }
 
 function validateHeader(bytes: Uint8Array): void {
