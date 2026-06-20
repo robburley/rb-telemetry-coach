@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  categoryLabel,
   formatLapIdentity,
   formatLapSummary,
   formatLapTime,
@@ -50,6 +51,7 @@ describe("dev UI formatting", () => {
     expect(reportStatusMessage(report)).toBe(
       "Zoom to a shorter slice, up to 15% of the lap.",
     );
+    expect(categoryLabel("rotation")).toBe("Rotation");
     expect(severityLabel("medium")).toBe("Medium severity");
   });
 

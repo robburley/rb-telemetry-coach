@@ -286,7 +286,15 @@ function reportKey(analysisId: string, zoomRaw: string | undefined | null): stri
 const extensionStyles = `
   :host {
     all: initial;
+    color: #e8eef0;
     color-scheme: dark;
+    font-family:
+      system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans",
+      "Liberation Sans", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
+      "Segoe UI Symbol", "Noto Color Emoji";
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
   }
 
   :host,

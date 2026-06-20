@@ -369,11 +369,9 @@ h2 {
 
 .finding-title-row {
   display: grid;
-  grid-template-columns: 12px minmax(0, 1fr) 18px;
-  gap: 10px;
-  align-items: center;
+  gap: 14px;
   min-width: 0;
-  padding: 18px;
+  padding: 8px 12px 12px 12px;
   cursor: pointer;
   list-style: none;
 }
@@ -384,6 +382,14 @@ h2 {
 
 .finding-title-row:hover h3 {
   color: #b5f3e9;
+}
+
+.finding-title-main {
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr) 18px;
+  gap: 10px;
+  align-items: center;
+  min-width: 0;
 }
 
 .accordion-indicator {
@@ -419,6 +425,24 @@ h2 {
 
 .severity-low {
   background: #61b3d1;
+}
+
+.finding-category-pill {
+  justify-self: start;
+  min-width: 0;
+  max-width: 120px;
+  border: 1px solid #3f565d;
+  border-radius: 999px;
+  padding: 4px 8px;
+  color: #bce4dd;
+  background: rgb(117 208 192 / 10%);
+  font-size: 0.72rem;
+  font-weight: 900;
+  line-height: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
 }
 
 h3 {

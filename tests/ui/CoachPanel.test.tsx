@@ -148,6 +148,10 @@ describe("CoachPanel", () => {
     );
 
     expect(markup).toContain('<details class="finding-card">');
+    expect(markup).toContain(
+      '<span class="finding-category-pill">Throttle</span><span class="finding-title-main"><span class="severity-dot severity-medium"',
+    );
+    expect(markup).toContain("<h3>Commit to the exit earlier</h3>");
     expect(markup).toContain("Exit speed");
     expect(markup).toContain("Full throttle");
     expect(markup).toContain("Linked findings");

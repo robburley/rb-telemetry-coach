@@ -1,6 +1,7 @@
 import type {
   AnalysisReport,
   DistanceSlice,
+  FindingCategory,
   FindingSeverity,
 } from "../domain/reportTypes";
 import type {
@@ -100,4 +101,26 @@ export function severityLabel(severity: FindingSeverity): string {
     return "Medium severity";
   }
   return "Low severity";
+}
+
+export function categoryLabel(category: FindingCategory): string {
+  if (category === "braking") {
+    return "Braking";
+  }
+  if (category === "throttle") {
+    return "Throttle";
+  }
+  if (category === "steering") {
+    return "Steering";
+  }
+  if (category === "line") {
+    return "Line";
+  }
+  if (category === "gearing") {
+    return "Gearing";
+  }
+  if (category === "rotation") {
+    return "Rotation";
+  }
+  return "Stability";
 }

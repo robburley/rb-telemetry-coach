@@ -5,6 +5,7 @@ import type {
   DistanceSlice,
 } from "../domain/reportTypes";
 import {
+  categoryLabel,
   formatLapTime,
   formatSignedDelta,
   formatSlice,
@@ -166,13 +167,16 @@ function FindingCard({
   return (
     <details className="finding-card">
       <summary className="finding-title-row">
-        <span
-          className={`severity-dot severity-${finding.severity}`}
-          aria-label={severityLabel(finding.severity)}
-          title={severityLabel(finding.severity)}
-        />
-        <h3>{finding.title}</h3>
-        <span className="accordion-indicator" aria-hidden="true" />
+        <span className="finding-category-pill">{categoryLabel(finding.category)}</span>
+        <span className="finding-title-main">
+          <span
+            className={`severity-dot severity-${finding.severity}`}
+            aria-label={severityLabel(finding.severity)}
+            title={severityLabel(finding.severity)}
+          />
+          <h3>{finding.title}</h3>
+          <span className="accordion-indicator" aria-hidden="true" />
+        </span>
       </summary>
       <div className="finding-card-content">
         <p className="finding-why">{finding.why}</p>
