@@ -29,6 +29,7 @@ export function excessiveSteering(
     severity: steering.peakSteeringDeltaDeg > comparison.config.rules.severity.steering.peakSteeringDeltaDeg ? "high" : "medium",
     confidence: 0.74,
     evidence: [makeEvidence("Peak steering", formatDegreesDelta(steering.peakSteeringDeltaDeg), "delta", "primary", { deltaDeg: steering.peakSteeringDeltaDeg })],
+    linkedRules: [{ id: "poor-rotation", reason: "extra wheel can be a symptom of rotation" }],
   };
 }
 
@@ -83,6 +84,10 @@ export function tooMuchSteeringWhileBraking(
             deltaKmh: speed.minSpeedDeltaKmh,
           })]),
     ],
+    linkedRules: [
+      { id: "instability-correction", reason: "steering load under brake can lead to corrections" },
+      { id: "poor-rotation", reason: "steering load under brake can point to unfinished rotation" },
+    ],
   };
 }
 
@@ -104,6 +109,7 @@ export function lateSteeringUnwind(
     severity: delta > comparison.config.rules.severity.steering.steeringUnwindDeltaM ? "high" : "medium",
     confidence: 0.72,
     evidence: [makeEvidence("Steering unwind", formatDistanceDelta(delta), "delta", "primary", { deltaM: delta })],
+    linkedRules: [{ id: "unnecessary-throttle-lift", reason: "late unwind can force a throttle reset" }],
   };
 }
 
@@ -172,6 +178,11 @@ export function underRotatedAtApex(
         ? [makeEvidence("Peak steering", formatDegreesDelta(steering.peakSteeringDeltaDeg), "delta", "secondary", { deltaDeg: steering.peakSteeringDeltaDeg })]
         : []),
     ],
+    linkedRules: [
+      { id: "excessive-steering", reason: "unfinished rotation can ask for extra steering" },
+      { id: "late-steering-unwind", reason: "unfinished rotation can delay the unwind" },
+      { id: "missed-apex-relative-to-reference", reason: "unfinished rotation can leave the apex missed" },
+    ],
   };
 }
 
@@ -223,6 +234,10 @@ export function delayedRotation(
       makeEvidence("Final rotation", formatHeadingDelta(rotation.headingChangeDeltaDeg), "delta", "secondary", {
         headingDeltaDeg: rotation.headingChangeDeltaDeg,
       }),
+    ],
+    linkedRules: [
+      { id: "under-rotated-at-apex", reason: "late rotation can show as unfinished apex rotation" },
+      { id: "late-steering-unwind", reason: "late rotation can keep steering loaded" },
     ],
   };
 }
@@ -276,5 +291,6 @@ export function minimumSpeedTooEarlyOrLate(
         { deltaKmh: early ? speed.minSpeedDeltaKmh : speed.exitSpeedDeltaKmh },
       ),
     ],
+    linkedRules: [{ id: "over-slowing-entry", reason: "early minimum speed often pairs with over-slowing" }],
   };
 }

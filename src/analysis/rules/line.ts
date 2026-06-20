@@ -39,6 +39,10 @@ export function overDrivingEntry(
       makeEvidence("Entry speed", formatSpeedDelta(speed.entrySpeedDeltaKmh), "delta", "primary", { deltaKmh: speed.entrySpeedDeltaKmh }),
       makeEvidence("Minimum speed", formatSpeedDelta(speed.minSpeedDeltaKmh), "delta", "secondary", { deltaKmh: speed.minSpeedDeltaKmh }),
     ],
+    linkedRules: [
+      { id: "over-slowing-entry", reason: "entry speed often turns into minimum-speed loss" },
+      { id: "unused-track-on-entry-relative-to-reference", reason: "entry pressure can shrink the available line" },
+    ],
   };
 }
 
@@ -78,6 +82,7 @@ export function unusedTrackOnEntryRelativeToReference(
         ? [makeEvidence("Minimum speed", formatSpeedDelta(speed.minSpeedDeltaKmh), "delta", "secondary", { deltaKmh: speed.minSpeedDeltaKmh })]
         : []),
     ],
+    linkedRules: [{ id: "over-slowing-entry", reason: "narrow entry can cost minimum speed" }],
   };
 }
 
@@ -117,6 +122,10 @@ export function missedApexRelativeToReference(
       ...(speed
         ? [makeEvidence("Minimum speed", formatSpeedDelta(speed.minSpeedDeltaKmh), "delta", "secondary", { deltaKmh: speed.minSpeedDeltaKmh })]
         : []),
+    ],
+    linkedRules: [
+      { id: "poor-rotation", reason: "missed apex and poor rotation often reinforce each other" },
+      { id: "late-steering-unwind", reason: "missing the apex can keep steering loaded" },
     ],
   };
 }
@@ -173,6 +182,10 @@ export function lateApex(
       ...(steering?.steeringUnwindDeltaM === undefined
         ? []
         : [makeEvidence("Steering unwind", formatDistanceDelta(steering.steeringUnwindDeltaM), "delta", "secondary", { deltaM: steering.steeringUnwindDeltaM })]),
+    ],
+    linkedRules: [
+      { id: "missed-apex-relative-to-reference", reason: "late apex timing can leave the reference apex missed" },
+      { id: "late-steering-unwind", reason: "late apex timing can delay steering release" },
     ],
   };
 }
@@ -232,6 +245,10 @@ export function earlyApexPinchedExit(
         ? [makeEvidence("Exit speed", formatSpeedDelta(speed.exitSpeedDeltaKmh), "delta", "secondary", { deltaKmh: speed.exitSpeedDeltaKmh })]
         : []),
     ],
+    linkedRules: [
+      { id: "pinched-exit-relative-to-reference", reason: "early apex timing can tighten the exit" },
+      { id: "late-steering-unwind", reason: "pinching the exit can delay steering release" },
+    ],
   };
 }
 
@@ -278,6 +295,10 @@ export function pinchedExitRelativeToReference(
       ...(speed
         ? [makeEvidence("Exit speed", formatSpeedDelta(speed.exitSpeedDeltaKmh), "delta", "secondary", { deltaKmh: speed.exitSpeedDeltaKmh })]
         : []),
+    ],
+    linkedRules: [
+      { id: "exit-hesitation", reason: "a pinched exit can delay throttle commitment" },
+      { id: "late-steering-unwind", reason: "a pinched exit can keep steering loaded" },
     ],
   };
 }
@@ -338,6 +359,10 @@ export function pathDeviationHotspot(
         ? [makeEvidence("Exit speed", formatSpeedDelta(speed.exitSpeedDeltaKmh), "delta", "secondary", { deltaKmh: speed.exitSpeedDeltaKmh })]
         : []),
     ],
+    linkedRules: [
+      { id: "pinched-exit-relative-to-reference", reason: "the largest path delta can show the exit pinch" },
+      { id: "late-steering-unwind", reason: "path divergence can keep steering loaded" },
+    ],
   };
 }
 
@@ -380,6 +405,7 @@ export function wideWithoutBenefit(
         ? [makeEvidence("Exit speed", formatSpeedDelta(speed.exitSpeedDeltaKmh), "delta", "secondary", { deltaKmh: speed.exitSpeedDeltaKmh })]
         : []),
     ],
+    linkedRules: [{ id: "over-slowing-entry", reason: "extra width without speed gain can still cost the corner" }],
   };
 }
 

@@ -62,6 +62,10 @@ export function wrongGearOnExit(
         ? []
         : [makeEvidence("Exit RPM", formatRpmDelta(gearRpm.exitRpmDelta), "delta", "secondary", { exitRpmDelta: gearRpm.exitRpmDelta })]),
     ],
+    linkedRules: [
+      { id: "exit-hesitation", reason: "exit gear can limit commitment" },
+      { id: "exit-acceleration-deficit", reason: "exit gear can limit acceleration build" },
+    ],
   };
 }
 
@@ -100,6 +104,10 @@ export function overRevvingWithoutSpeedGain(
       makeEvidence("Exit speed", formatSpeedDelta(speed.exitSpeedDeltaKmh), "delta", "secondary", {
         deltaKmh: speed.exitSpeedDeltaKmh,
       }),
+    ],
+    linkedRules: [
+      { id: "exit-hesitation", reason: "extra revs without speed can leave the exit delayed" },
+      { id: "exit-acceleration-deficit", reason: "extra revs without speed can weaken acceleration build" },
     ],
   };
 }
@@ -157,6 +165,7 @@ export function shortShiftCostingExit(
             }),
           ]),
     ],
+    linkedRules: [{ id: "exit-acceleration-deficit", reason: "short shifting can weaken acceleration build" }],
   };
 }
 

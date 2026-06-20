@@ -63,6 +63,7 @@ export function brakingTooLate(
     severity: delta > comparison.config.rules.severity.braking.brakeTimingDeltaM ? "high" : "medium",
     confidence: 0.8,
     evidence: [makeEvidence("Brake start", formatDistanceDelta(delta), "delta", "primary", { deltaM: delta })],
+    linkedRules: [{ id: "over-driving-entry", reason: "late braking can start the entry cascade" }],
   };
 }
 
@@ -85,6 +86,7 @@ export function holdingBrakeTooLong(
     severity: delta > comparison.config.rules.severity.braking.brakeDurationDeltaM ? "high" : "medium",
     confidence: 0.78,
     evidence: [makeEvidence("Brake duration", formatDistanceDelta(delta), "delta", "primary", { deltaM: delta })],
+    linkedRules: [{ id: "delayed-throttle-pickup", reason: "long brake release can delay throttle" }],
   };
 }
 
@@ -179,6 +181,7 @@ export function softInitialBrake(
         ? [makeEvidence("Minimum speed", formatSpeedDelta(speed.minSpeedDeltaKmh), "delta", "secondary", { deltaKmh: speed.minSpeedDeltaKmh })]
         : []),
     ],
+    linkedRules: [{ id: "holding-brake-too-long", reason: "slow pressure build can extend the brake phase" }],
   };
 }
 
@@ -222,6 +225,7 @@ export function spikingBrakePressure(
         peakBrakeDelta: shape.targetPeakBrake - shape.referencePeakBrake,
       }),
     ],
+    linkedRules: [{ id: "instability-correction", reason: "abrupt brake pressure can unsettle the car" }],
   };
 }
 
@@ -258,6 +262,7 @@ export function dumpingBrakeRelease(
         ? [makeEvidence("Peak steering", `${steering.peakSteeringDeltaDeg.toFixed(1)} deg extra`, "delta", "secondary", { deltaDeg: steering.peakSteeringDeltaDeg })]
         : []),
     ],
+    linkedRules: [{ id: "poor-rotation", reason: "sharp release can leave rotation unfinished" }],
   };
 }
 
@@ -300,6 +305,7 @@ export function draggingBrake(
         ? []
         : [makeEvidence("First throttle", formatDistanceDelta(throttle.firstThrottleDeltaM), "delta", "secondary", { deltaM: throttle.firstThrottleDeltaM })]),
     ],
+    linkedRules: [{ id: "delayed-throttle-pickup", reason: "carrying brake near apex can delay throttle" }],
   };
 }
 
@@ -344,5 +350,6 @@ export function underBrakingPressure(
         ? []
         : [makeEvidence("Brake duration", formatDistanceDuration(braking.brakeDurationDeltaM), "delta", "secondary", { deltaM: braking.brakeDurationDeltaM })]),
     ],
+    linkedRules: [{ id: "holding-brake-too-long", reason: "too little pressure can stretch the entry" }],
   };
 }

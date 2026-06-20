@@ -2583,5 +2583,91 @@ function makeFinding(id: string, priority: number) {
     severity: "medium" as const,
     confidence: 0.5,
     evidence: [],
+    linkedRules: testLinkedRulesById[id],
   };
 }
+
+const testLinkedRulesById: Record<string, CoachingFinding["linkedRules"]> = {
+  "over-driving-entry": [
+    { id: "over-slowing-entry", reason: "entry speed often turns into minimum-speed loss" },
+    { id: "unused-track-on-entry-relative-to-reference", reason: "entry pressure can shrink the available line" },
+  ],
+  "braking-too-late": [{ id: "over-driving-entry", reason: "late braking can start the entry cascade" }],
+  "early-throttle-with-lift": [
+    { id: "instability-correction", reason: "early throttle and corrections often travel together" },
+    { id: "unnecessary-throttle-lift", reason: "an early throttle pickup can lead to an extra lift" },
+  ],
+  "unnecessary-throttle-lift": [{ id: "exit-hesitation", reason: "extra lifts can delay exit commitment" }],
+  "deep-throttle-lift": [{ id: "instability-correction", reason: "deep lifts and corrections often appear together" }],
+  "long-throttle-lift": [{ id: "exit-hesitation", reason: "long lifts can leave the exit drive delayed" }],
+  "coasting-mid-corner": [
+    { id: "delayed-throttle-pickup", reason: "a neutral pedal gap delays the first throttle" },
+    { id: "exit-hesitation", reason: "coasting can leave exit speed to rebuild" },
+  ],
+  "rushed-brake-to-throttle": [
+    { id: "early-throttle-with-lift", reason: "a rushed handoff can force a throttle reset" },
+    { id: "instability-correction", reason: "a rushed handoff can unsettle the platform" },
+  ],
+  "throttle-reapplied-while-braking": [
+    { id: "instability-correction", reason: "mixed pedals can unsettle the platform" },
+    { id: "dumping-brake-release", reason: "mixed pedals often pair with a rushed release" },
+  ],
+  "throttle-before-steering-unwind": [
+    { id: "early-throttle-with-lift", reason: "early throttle before unwind can force a lift" },
+    { id: "exit-hesitation", reason: "waiting after early throttle can delay the exit" },
+  ],
+  "late-steering-unwind": [{ id: "unnecessary-throttle-lift", reason: "late unwind can force a throttle reset" }],
+  "too-much-steering-while-braking": [
+    { id: "instability-correction", reason: "steering load under brake can lead to corrections" },
+    { id: "poor-rotation", reason: "steering load under brake can point to unfinished rotation" },
+  ],
+  "excessive-steering": [{ id: "poor-rotation", reason: "extra wheel can be a symptom of rotation" }],
+  "under-rotated-at-apex": [
+    { id: "excessive-steering", reason: "unfinished rotation can ask for extra steering" },
+    { id: "late-steering-unwind", reason: "unfinished rotation can delay the unwind" },
+    { id: "missed-apex-relative-to-reference", reason: "unfinished rotation can leave the apex missed" },
+  ],
+  "holding-brake-too-long": [{ id: "delayed-throttle-pickup", reason: "long brake release can delay throttle" }],
+  "soft-initial-brake": [{ id: "holding-brake-too-long", reason: "slow pressure build can extend the brake phase" }],
+  "spiking-brake-pressure": [{ id: "instability-correction", reason: "abrupt brake pressure can unsettle the car" }],
+  "dumping-brake-release": [{ id: "poor-rotation", reason: "sharp release can leave rotation unfinished" }],
+  "dragging-brake": [{ id: "delayed-throttle-pickup", reason: "carrying brake near apex can delay throttle" }],
+  "under-braking-pressure": [{ id: "holding-brake-too-long", reason: "too little pressure can stretch the entry" }],
+  "unused-track-on-entry-relative-to-reference": [{ id: "over-slowing-entry", reason: "narrow entry can cost minimum speed" }],
+  "missed-apex-relative-to-reference": [
+    { id: "poor-rotation", reason: "missed apex and poor rotation often reinforce each other" },
+    { id: "late-steering-unwind", reason: "missing the apex can keep steering loaded" },
+  ],
+  "late-apex": [
+    { id: "missed-apex-relative-to-reference", reason: "late apex timing can leave the reference apex missed" },
+    { id: "late-steering-unwind", reason: "late apex timing can delay steering release" },
+  ],
+  "early-apex-pinched-exit": [
+    { id: "pinched-exit-relative-to-reference", reason: "early apex timing can tighten the exit" },
+    { id: "late-steering-unwind", reason: "pinching the exit can delay steering release" },
+  ],
+  "pinched-exit-relative-to-reference": [
+    { id: "exit-hesitation", reason: "a pinched exit can delay throttle commitment" },
+    { id: "late-steering-unwind", reason: "a pinched exit can keep steering loaded" },
+  ],
+  "path-deviation-hotspot": [
+    { id: "pinched-exit-relative-to-reference", reason: "the largest path delta can show the exit pinch" },
+    { id: "late-steering-unwind", reason: "path divergence can keep steering loaded" },
+  ],
+  "wide-without-benefit": [{ id: "over-slowing-entry", reason: "extra width without speed gain can still cost the corner" }],
+  "delayed-rotation": [
+    { id: "under-rotated-at-apex", reason: "late rotation can show as unfinished apex rotation" },
+    { id: "late-steering-unwind", reason: "late rotation can keep steering loaded" },
+  ],
+  "minimum-speed-too-early-or-late": [{ id: "over-slowing-entry", reason: "early minimum speed often pairs with over-slowing" }],
+  "exit-acceleration-deficit": [{ id: "exit-hesitation", reason: "weak acceleration build often appears as delayed exit commitment" }],
+  "wrong-gear-on-exit": [
+    { id: "exit-hesitation", reason: "exit gear can limit commitment" },
+    { id: "exit-acceleration-deficit", reason: "exit gear can limit acceleration build" },
+  ],
+  "over-revving-without-speed-gain": [
+    { id: "exit-hesitation", reason: "extra revs without speed can leave the exit delayed" },
+    { id: "exit-acceleration-deficit", reason: "extra revs without speed can weaken acceleration build" },
+  ],
+  "short-shift-costing-exit": [{ id: "exit-acceleration-deficit", reason: "short shifting can weaken acceleration build" }],
+};

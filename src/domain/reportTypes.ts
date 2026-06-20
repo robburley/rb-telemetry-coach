@@ -43,6 +43,12 @@ export interface CoachingFinding {
   relatedFindingIds?: string[];
   possibleCauseFindingIds?: string[];
   possibleEffectFindingIds?: string[];
+  linkedRules?: LinkedRule[];
+}
+
+export interface LinkedRule {
+  id: string;
+  reason: string;
 }
 
 export type FindingCategory =

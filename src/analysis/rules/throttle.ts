@@ -66,6 +66,10 @@ export function earlyThrottleWithLift(
       makeEvidence("First throttle", formatDistanceDelta(firstDelta), "delta", "primary", { deltaM: firstDelta }),
       makeEvidence("Extra lifts", `${extraLifts}`, "comparison", "secondary", { extraLifts }),
     ],
+    linkedRules: [
+      { id: "instability-correction", reason: "early throttle and corrections often travel together" },
+      { id: "unnecessary-throttle-lift", reason: "an early throttle pickup can lead to an extra lift" },
+    ],
   };
 }
 
@@ -146,6 +150,10 @@ export function coastingMidCorner(
             targetSpeedLostDuringCoastKmh: speedLostDuringCoast,
           })]),
     ],
+    linkedRules: [
+      { id: "delayed-throttle-pickup", reason: "a neutral pedal gap delays the first throttle" },
+      { id: "exit-hesitation", reason: "coasting can leave exit speed to rebuild" },
+    ],
   };
 }
 
@@ -200,6 +208,10 @@ export function rushedBrakeToThrottle(
         ? []
         : [makeEvidence("Exit speed", formatSpeedDelta(speed.exitSpeedDeltaKmh), "delta", "secondary", { deltaKmh: speed.exitSpeedDeltaKmh })]),
     ],
+    linkedRules: [
+      { id: "early-throttle-with-lift", reason: "a rushed handoff can force a throttle reset" },
+      { id: "instability-correction", reason: "a rushed handoff can unsettle the platform" },
+    ],
   };
 }
 
@@ -253,6 +265,10 @@ export function throttleBeforeSteeringUnwind(
             deltaKmh: speed.exitSpeedDeltaKmh,
           })]),
     ],
+    linkedRules: [
+      { id: "early-throttle-with-lift", reason: "early throttle before unwind can force a lift" },
+      { id: "exit-hesitation", reason: "waiting after early throttle can delay the exit" },
+    ],
   };
 }
 
@@ -305,6 +321,10 @@ export function throttleReappliedWhileBraking(
       makeEvidence("Overlap distance", formatDistanceDuration(targetRise.distanceM), "absolute", "secondary", {
         overlapDistanceM: targetRise.distanceM ?? 0,
       }),
+    ],
+    linkedRules: [
+      { id: "instability-correction", reason: "mixed pedals can unsettle the platform" },
+      { id: "dumping-brake-release", reason: "mixed pedals often pair with a rushed release" },
     ],
   };
 }
@@ -363,6 +383,7 @@ export function exitAccelerationDeficit(
             referenceGainKmh: referenceGain,
           })]),
     ],
+    linkedRules: [{ id: "exit-hesitation", reason: "weak acceleration build often appears as delayed exit commitment" }],
   };
 }
 
@@ -406,6 +427,7 @@ export function unnecessaryThrottleLift(
         referenceLiftCount: lift.referenceLiftCount,
       }),
     ],
+    linkedRules: [{ id: "exit-hesitation", reason: "extra lifts can delay exit commitment" }],
   };
 }
 
@@ -438,6 +460,7 @@ export function deepThrottleLift(
         targetMaxLiftDepth: lift.targetMaxLiftDepth,
       }),
     ],
+    linkedRules: [{ id: "instability-correction", reason: "deep lifts and corrections often appear together" }],
   };
 }
 
@@ -472,5 +495,6 @@ export function longThrottleLift(
         targetLongestLiftDurationM: lift.targetLongestLiftDurationM ?? 0,
       }),
     ],
+    linkedRules: [{ id: "exit-hesitation", reason: "long lifts can leave the exit drive delayed" }],
   };
 }
