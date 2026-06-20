@@ -4,10 +4,6 @@ Effective date: [DATE]
 
 RB Telemetry Coach is a browser extension developed by Rob Burley. This privacy policy explains what information the extension can access, how that information is used, and what information is collected or shared.
 
-## Submission purpose
-
-This is the long-form public privacy policy artifact for hosting and store review. The shorter store-form privacy disclosure remains in `docs/privacy-disclosure.md`.
-
 ## Summary
 
 RB Telemetry Coach runs locally in your browser. It does not send telemetry, lap data, driver names, Garage 61 URLs, usage data, analytics, error logs, or any other data to the developer or to third-party services.
