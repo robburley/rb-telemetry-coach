@@ -5,7 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
-    "build": "tsc --noEmit && vite build && vite build --config vite.extension.config.ts",
+    "build": "tsc --noEmit && vite build && npm run build:extensions",
+    "build:extensions": "vite build --config vite.extension.config.ts",
+    "build:extension:chrome": "vite build --config vite.extension.config.ts --mode chrome",
+    "build:extension:firefox": "vite build --config vite.extension.config.ts --mode firefox",
     "preview": "vite preview --host 127.0.0.1",
     "smoke:ui": "node scripts/ui-smoke.mjs",
     "typecheck": "tsc --noEmit",
