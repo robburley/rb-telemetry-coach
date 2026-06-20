@@ -6,6 +6,31 @@ The pipeline normalizes Garage 61 telemetry, resamples both laps onto the select
 
 Most thresholds are intentionally conservative. Distance-based timing checks usually use 8-10 m deltas, speed checks use roughly 3 km/h deltas, pedal depth checks use roughly 0.12-0.15 normalized pedal travel, lateral/path checks use metre-scale deltas, and RPM/gear checks require meaningful strategy differences.
 
+## Analysis Configuration
+
+Developer-facing tuning lives in `src/analysis/config.ts`. Use `defaultAnalysisConfig` for production defaults and `createAnalysisConfig` for focused test or harness overrides so nested settings keep their sibling defaults.
+
+The config is grouped by pipeline purpose:
+
+- `resampling`: distance step and maximum point count for the normalized slice.
+- `smoothing`: per-channel distance windows for speed, brake, throttle, and steering.
+- `events`: detection thresholds for active brake/throttle, full throttle, throttle lifts, steering noise, and steering unwind.
+- `slicing`: minimum and maximum selected-slice length limits.
+- `rules.triggers`: thresholds that decide whether a deterministic finding appears.
+- `rules.severity`: thresholds that decide high versus medium severity after a finding has already triggered.
+- `rules.factors`: rule-specific calculation factors that are tuneable but are not trigger or severity thresholds.
+
+Trigger and severity thresholds are deliberately separate even when their names sound similar. For example, `rules.triggers.brakeTimingDeltaM` controls whether braking timing findings can appear, while `rules.severity.braking.brakeTimingDeltaM` controls how strongly qualifying braking timing findings are labeled. Override only the smallest group needed for a calibration test:
+
+```ts
+const config = createAnalysisConfig({
+  rules: {
+    triggers: { brakeTimingDeltaM: 12 },
+    severity: { braking: { brakeTimingDeltaM: 7 } },
+  },
+});
+```
+
 ## Core Telemetry And Metrics
 
 The currently decoded channels are speed, brake, throttle, steering, gear, RPM, latitude, longitude, heading, and distance percentage. The deterministic rules use these derived metric groups:

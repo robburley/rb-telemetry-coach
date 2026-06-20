@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { validateDistanceSlice, type DistanceSlice } from "../../src";
+import { createAnalysisConfig, validateDistanceSlice, type DistanceSlice } from "../../src";
 
 describe("validateDistanceSlice", () => {
   it("accepts non-wrapped slices within v1 length boundaries", () => {
@@ -43,6 +43,23 @@ describe("validateDistanceSlice", () => {
     expect(validateDistanceSlice(makeSlice(0.1, 0.2501))).toMatchObject({
       status: "unsupported",
       reason: "slice_too_large",
+    });
+  });
+
+  it("uses slicing config overrides for min and max length boundaries", () => {
+    const config = createAnalysisConfig({
+      slicing: {
+        minCoachingSliceLengthPct: 0.01,
+        maxCoachingSliceLengthPct: 0.2,
+      },
+    });
+
+    expect(validateDistanceSlice(makeSlice(0.1, 0.105), config.slicing)).toMatchObject({
+      status: "needs_slice",
+      reason: "slice_too_short",
+    });
+    expect(validateDistanceSlice(makeSlice(0.1, 0.25), config.slicing)).toMatchObject({
+      status: "valid",
     });
   });
 

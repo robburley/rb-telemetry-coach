@@ -6,9 +6,8 @@ import type {
   SliceTelemetry,
   TelemetryChannelAvailability,
 } from "../domain/types";
+import { defaultAnalysisConfig, type SlicingConfig } from "./config";
 
-export const MIN_COACHING_SLICE_LENGTH_PCT = 0.005;
-export const MAX_COACHING_SLICE_LENGTH_PCT = 0.15;
 const SLICE_LENGTH_EPSILON = 1e-9;
 
 export type SliceValidationReason =
@@ -32,6 +31,7 @@ export type DistanceSliceValidationResult =
 
 export function validateDistanceSlice(
   slice: DistanceSlice | undefined | null,
+  config: SlicingConfig = defaultAnalysisConfig.slicing,
 ): DistanceSliceValidationResult {
   if (!slice) {
     return {
@@ -75,7 +75,7 @@ export function validateDistanceSlice(
     };
   }
 
-  if (length < MIN_COACHING_SLICE_LENGTH_PCT - SLICE_LENGTH_EPSILON) {
+  if (length < config.minCoachingSliceLengthPct - SLICE_LENGTH_EPSILON) {
     return {
       status: "needs_slice",
       reason: "slice_too_short",
@@ -83,7 +83,7 @@ export function validateDistanceSlice(
     };
   }
 
-  if (length > MAX_COACHING_SLICE_LENGTH_PCT + SLICE_LENGTH_EPSILON) {
+  if (length > config.maxCoachingSliceLengthPct + SLICE_LENGTH_EPSILON) {
     return {
       status: "unsupported",
       reason: "slice_too_large",
@@ -100,8 +100,9 @@ export function validateDistanceSlice(
 export function sliceLapTelemetry(
   telemetry: LapTelemetry,
   slice: DistanceSlice,
+  config: SlicingConfig = defaultAnalysisConfig.slicing,
 ): SliceTelemetry {
-  const validation = validateDistanceSlice(slice);
+  const validation = validateDistanceSlice(slice, config);
   if (validation.status !== "valid") {
     throw new Error(`Cannot slice telemetry: ${validation.reason}`);
   }

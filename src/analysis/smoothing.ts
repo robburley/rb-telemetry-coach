@@ -12,22 +12,22 @@ export function smoothResampledTelemetry(
       speedMs: smoothFloat32ByDistance(
         telemetry.channels.speedMs,
         telemetry.distanceM,
-        config.smoothingWindowM.speed,
+        config.smoothing.speed,
       ),
       brake: smoothFloat32ByDistance(
         telemetry.channels.brake,
         telemetry.distanceM,
-        config.smoothingWindowM.brake,
+        config.smoothing.brake,
       ),
       throttle: smoothFloat32ByDistance(
         telemetry.channels.throttle,
         telemetry.distanceM,
-        config.smoothingWindowM.throttle,
+        config.smoothing.throttle,
       ),
       steeringRad: smoothFloat32ByDistance(
         telemetry.channels.steeringRad,
         telemetry.distanceM,
-        config.smoothingWindowM.steering,
+        config.smoothing.steering,
       ),
     },
   };

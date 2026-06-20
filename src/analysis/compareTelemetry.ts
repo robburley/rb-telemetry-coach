@@ -1,4 +1,8 @@
-import { defaultAnalysisConfig, type AnalysisConfig } from "./config";
+import {
+  defaultAnalysisConfig,
+  type AnalysisConfig,
+  type EventDetectionConfig,
+} from "./config";
 import { detectDrivingEvents } from "./events";
 import { resampleTelemetryPair } from "./resampling";
 import { smoothResampledTelemetry } from "./smoothing";
@@ -258,8 +262,8 @@ export function compareTelemetry(
   );
   const reference = smoothResampledTelemetry(referenceRaw, config);
   const target = smoothResampledTelemetry(targetRaw, config);
-  const referenceEvents = detectDrivingEvents(reference);
-  const targetEvents = detectDrivingEvents(target);
+  const referenceEvents = detectDrivingEvents(reference, config.events);
+  const targetEvents = detectDrivingEvents(target, config.events);
 
   return {
     context,
@@ -278,8 +282,8 @@ export function compareTelemetry(
       path: comparePath(reference, target),
       apex: compareApex(reference, target, lapLengthM),
       speedShape: compareSpeedShape(reference, target),
-      pedalCoordination: comparePedalCoordination(reference, target, lapLengthM),
-      throttleLiftQuality: compareThrottleLiftQuality(reference, target, lapLengthM),
+      pedalCoordination: comparePedalCoordination(reference, target, lapLengthM, config.events),
+      throttleLiftQuality: compareThrottleLiftQuality(reference, target, lapLengthM, config.events),
       brakePressureShape: compareBrakePressureShape(reference, target, referenceEvents, targetEvents, lapLengthM),
       brakeToThrottleTransition: compareBrakeToThrottleTransition(
         reference,
@@ -287,6 +291,7 @@ export function compareTelemetry(
         referenceEvents,
         targetEvents,
         lapLengthM,
+        config.events,
       ),
       headingRotation: compareHeadingRotation(reference, target, lapLengthM),
       lineUsage: compareLineUsage(reference, target, config),
@@ -592,11 +597,12 @@ function comparePedalCoordination(
   reference: ResampledTelemetry,
   target: ResampledTelemetry,
   lapLengthM: number | undefined,
+  eventConfig: EventDetectionConfig,
 ): PedalCoordinationComparisonMetrics | undefined {
-  const referenceSteeringWhileBraking = summarizeSteeringWhileBraking(reference, lapLengthM);
-  const targetSteeringWhileBraking = summarizeSteeringWhileBraking(target, lapLengthM);
-  const referenceThrottleRiseWhileBraking = summarizeThrottleRiseWhileBraking(reference, lapLengthM);
-  const targetThrottleRiseWhileBraking = summarizeThrottleRiseWhileBraking(target, lapLengthM);
+  const referenceSteeringWhileBraking = summarizeSteeringWhileBraking(reference, lapLengthM, eventConfig);
+  const targetSteeringWhileBraking = summarizeSteeringWhileBraking(target, lapLengthM, eventConfig);
+  const referenceThrottleRiseWhileBraking = summarizeThrottleRiseWhileBraking(reference, lapLengthM, eventConfig);
+  const targetThrottleRiseWhileBraking = summarizeThrottleRiseWhileBraking(target, lapLengthM, eventConfig);
 
   if (
     !referenceSteeringWhileBraking &&
@@ -631,6 +637,7 @@ function compareThrottleLiftQuality(
   reference: ResampledTelemetry,
   target: ResampledTelemetry,
   lapLengthM: number | undefined,
+  eventConfig: EventDetectionConfig,
 ): ThrottleLiftQualityComparisonMetrics | undefined {
   const referenceThrottle = reference.channels.throttle;
   const targetThrottle = target.channels.throttle;
@@ -640,8 +647,8 @@ function compareThrottleLiftQuality(
 
   const referenceArea = normalizedPedalArea(referenceThrottle, reference.distancePct, lapLengthM);
   const targetArea = normalizedPedalArea(targetThrottle, target.distancePct, lapLengthM);
-  const referenceLiftSummary = summarizeThrottleLifts(referenceThrottle, reference.distancePct, lapLengthM);
-  const targetLiftSummary = summarizeThrottleLifts(targetThrottle, target.distancePct, lapLengthM);
+  const referenceLiftSummary = summarizeThrottleLifts(referenceThrottle, reference.distancePct, lapLengthM, eventConfig);
+  const targetLiftSummary = summarizeThrottleLifts(targetThrottle, target.distancePct, lapLengthM, eventConfig);
 
   return {
     targetArea,
@@ -759,6 +766,7 @@ function compareBrakeToThrottleTransition(
   referenceEvents: DetectedDrivingEvents,
   targetEvents: DetectedDrivingEvents,
   lapLengthM: number | undefined,
+  eventConfig: EventDetectionConfig,
 ): BrakeToThrottleTransitionComparisonMetrics | undefined {
   const referenceCoastGapM = distanceBetweenPct(
     referenceEvents.brakeReleaseDistancePct,
@@ -804,11 +812,13 @@ function compareBrakeToThrottleTransition(
     reference,
     referenceEvents,
     lapLengthM,
+    eventConfig,
   );
   const targetBrakeEntryThrottleOverlap = summarizeBrakeEntryThrottleOverlap(
     target,
     targetEvents,
     lapLengthM,
+    eventConfig,
   );
 
   if (
@@ -868,6 +878,7 @@ function summarizeBrakeEntryThrottleOverlap(
   telemetry: ResampledTelemetry,
   events: DetectedDrivingEvents,
   lapLengthM: number | undefined,
+  eventConfig: EventDetectionConfig,
 ): { overlapM?: number; throttleDrop?: number } {
   const throttle = telemetry.channels.throttle;
   if (
@@ -890,7 +901,7 @@ function summarizeBrakeEntryThrottleOverlap(
   }
 
   const throttleAtBrakeStart = clampPedal(throttle[brakeStartIndex] ?? 0);
-  if (throttleAtBrakeStart <= THROTTLE_ACTIVE_LEVEL) {
+  if (throttleAtBrakeStart <= eventConfig.throttleActiveThreshold) {
     return {};
   }
 
@@ -899,7 +910,7 @@ function summarizeBrakeEntryThrottleOverlap(
   for (let index = brakeStartIndex; index <= brakeReleaseIndex; index += 1) {
     const value = clampPedal(throttle[index] ?? 0);
     minimumThrottleWhileBraking = Math.min(minimumThrottleWhileBraking, value);
-    if (value <= THROTTLE_ACTIVE_LEVEL) {
+    if (value <= eventConfig.throttleActiveThreshold) {
       lastOverlappingIndex = index;
       break;
     }
@@ -1014,7 +1025,7 @@ function compareLineUsage(
   );
   const cornerDirection = inferCornerDirection(
     headingChange,
-    config.thresholds.ambiguousCornerHeadingDeltaDeg,
+    config.rules.triggers.ambiguousCornerHeadingDeltaDeg,
   );
   const apexIndex = chooseApexIndex(reference, referenceUnwrappedHeading) ?? Math.floor(offsets.length / 2);
   const entryWindow = fractionalIndexWindow(offsets.length, 0, 0.33);
@@ -1494,17 +1505,15 @@ interface ThrottleLiftSegment {
   minLevel: number;
 }
 
-const THROTTLE_ACTIVE_LEVEL = 0.05;
-const BRAKE_ACTIVE_LEVEL = 0.05;
-const THROTTLE_LIFT_DROP = 0.12;
 const THROTTLE_LIFT_RECOVERY_MARGIN = 0.05;
 
 function summarizeThrottleLifts(
   values: Float32Array,
   distancePct: Float64Array,
   lapLengthM: number | undefined,
+  eventConfig: EventDetectionConfig,
 ): ThrottleLiftSummary {
-  const segments = findThrottleLiftSegments(values);
+  const segments = findThrottleLiftSegments(values, eventConfig);
   let maxDepth = 0;
   let longestDurationM: number | undefined;
   let totalDistanceM = lapLengthM === undefined ? undefined : 0;
@@ -1541,7 +1550,10 @@ function summarizeThrottleLifts(
   };
 }
 
-function findThrottleLiftSegments(values: Float32Array): ThrottleLiftSegment[] {
+function findThrottleLiftSegments(
+  values: Float32Array,
+  eventConfig: EventDetectionConfig,
+): ThrottleLiftSegment[] {
   const segments: ThrottleLiftSegment[] = [];
   let index = 1;
 
@@ -1549,7 +1561,10 @@ function findThrottleLiftSegments(values: Float32Array): ThrottleLiftSegment[] {
     const previous = clampPedal(values[index - 1]!);
     const current = clampPedal(values[index]!);
     const drop = previous - current;
-    if (previous <= THROTTLE_ACTIVE_LEVEL || drop < THROTTLE_LIFT_DROP) {
+    if (
+      previous <= eventConfig.throttleActiveThreshold ||
+      drop < eventConfig.throttleLiftDrop
+    ) {
       index += 1;
       continue;
     }
@@ -1615,6 +1630,7 @@ function averageBrakeAroundMinSpeed(
 function summarizeSteeringWhileBraking(
   telemetry: ResampledTelemetry,
   lapLengthM: number | undefined,
+  eventConfig: EventDetectionConfig,
 ): SteeringWhileBrakingMetrics | undefined {
   const brake = telemetry.channels.brake;
   const steering = telemetry.channels.steeringRad;
@@ -1629,7 +1645,7 @@ function summarizeSteeringWhileBraking(
   let steeringSumDeg = 0;
 
   for (let index = 0; index < brake.length; index += 1) {
-    if (clampPedal(brake[index]!) <= BRAKE_ACTIVE_LEVEL) {
+    if (clampPedal(brake[index]!) <= eventConfig.brakeActiveThreshold) {
       continue;
     }
 
@@ -1661,6 +1677,7 @@ function summarizeSteeringWhileBraking(
 function summarizeThrottleRiseWhileBraking(
   telemetry: ResampledTelemetry,
   lapLengthM: number | undefined,
+  eventConfig: EventDetectionConfig,
 ): ThrottleRiseWhileBrakingMetrics | undefined {
   const brake = telemetry.channels.brake;
   const throttle = telemetry.channels.throttle;
@@ -1716,8 +1733,8 @@ function summarizeThrottleRiseWhileBraking(
   };
 
   for (let index = 1; index < throttle.length; index += 1) {
-    const previousBrakeActive = clampPedal(brake[index - 1]!) > BRAKE_ACTIVE_LEVEL;
-    const currentBrakeActive = clampPedal(brake[index]!) > BRAKE_ACTIVE_LEVEL;
+    const previousBrakeActive = clampPedal(brake[index - 1]!) > eventConfig.brakeActiveThreshold;
+    const currentBrakeActive = clampPedal(brake[index]!) > eventConfig.brakeActiveThreshold;
     if (!previousBrakeActive || !currentBrakeActive) {
       finishSegment();
       continue;

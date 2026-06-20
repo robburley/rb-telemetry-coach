@@ -5,7 +5,6 @@ import {
   makeEvidence,
   formatDistanceDelta,
 } from "../evidence";
-import { THROTTLE_SEVERITY } from "./constants/throttle";
 import type { RuleDefinition } from "./index";
 
 export const throttleRules: RuleDefinition[] = [
@@ -27,7 +26,7 @@ export function delayedThrottlePickup(
 ): ReturnType<RuleDefinition> {
   const throttle = comparison.metrics.throttle;
   const delta = throttle?.firstThrottleDeltaM;
-  if (delta === undefined || delta <= comparison.config.thresholds.throttleTimingDeltaM) {
+  if (delta === undefined || delta <= comparison.config.rules.triggers.throttleTimingDeltaM) {
     return undefined;
   }
 
@@ -38,7 +37,7 @@ export function delayedThrottlePickup(
     why: "The reference starts building throttle sooner, which helps settle the exit and reduce the wait.",
     practiceCue: "Look for the first moment the wheel is opening and add a small maintenance throttle.",
     category: "throttle",
-    severity: delta > THROTTLE_SEVERITY.throttleTimingDeltaM ? "high" : "medium",
+    severity: delta > comparison.config.rules.severity.throttle.throttleTimingDeltaM ? "high" : "medium",
     confidence: 0.78,
     evidence: [makeEvidence("First throttle", formatDistanceDelta(delta), "delta", "primary", { deltaM: delta })],
   };
@@ -50,7 +49,7 @@ export function earlyThrottleWithLift(
   const throttle = comparison.metrics.throttle;
   const firstDelta = throttle?.firstThrottleDeltaM;
   const extraLifts = (throttle?.targetLiftCount ?? 0) - (throttle?.referenceLiftCount ?? 0);
-  if (firstDelta === undefined || firstDelta >= -comparison.config.thresholds.throttleTimingDeltaM || extraLifts <= 0) {
+  if (firstDelta === undefined || firstDelta >= -comparison.config.rules.triggers.throttleTimingDeltaM || extraLifts <= 0) {
     return undefined;
   }
 
@@ -61,7 +60,7 @@ export function earlyThrottleWithLift(
     why: "You pick up throttle earlier, but then lift again, which suggests the car was not ready for that commitment.",
     practiceCue: "Delay the first squeeze until you can keep opening the pedal in one clean ramp.",
     category: "throttle",
-    severity: extraLifts > THROTTLE_SEVERITY.extraLiftCount ? "high" : "medium",
+    severity: extraLifts > comparison.config.rules.severity.throttle.extraLiftCount ? "high" : "medium",
     confidence: 0.77,
     evidence: [
       makeEvidence("First throttle", formatDistanceDelta(firstDelta), "delta", "primary", { deltaM: firstDelta }),
@@ -78,8 +77,8 @@ export function exitHesitation(
   const fullDelta = throttle?.fullThrottleDeltaM;
   if (
     !speed ||
-    speed.exitSpeedDeltaKmh >= -comparison.config.thresholds.exitSpeedDeltaKmh ||
-    (fullDelta !== undefined && fullDelta <= comparison.config.thresholds.throttleTimingDeltaM)
+    speed.exitSpeedDeltaKmh >= -comparison.config.rules.triggers.exitSpeedDeltaKmh ||
+    (fullDelta !== undefined && fullDelta <= comparison.config.rules.triggers.throttleTimingDeltaM)
   ) {
     return undefined;
   }
@@ -91,7 +90,7 @@ export function exitHesitation(
     why: "You leave the slice slower than the reference and do not reach full throttle as early.",
     practiceCue: "Once steering starts unwinding, keep the throttle ramp deliberate instead of pausing.",
     category: "throttle",
-    severity: speed.exitSpeedDeltaKmh < THROTTLE_SEVERITY.highExitSpeedLossKmh ? "high" : "medium",
+    severity: speed.exitSpeedDeltaKmh < comparison.config.rules.severity.throttle.highExitSpeedLossKmh ? "high" : "medium",
     confidence: 0.76,
     evidence: [
       makeEvidence("Exit speed", formatSpeedDelta(speed.exitSpeedDeltaKmh), "delta", "primary", { deltaKmh: speed.exitSpeedDeltaKmh }),
@@ -112,14 +111,14 @@ export function coastingMidCorner(
   const speedLostDuringCoast = transition?.targetSpeedLostDuringCoastKmh;
   const losesSpeed =
     speed !== undefined &&
-    (speed.minSpeedDeltaKmh < -comparison.config.thresholds.minSpeedDeltaKmh ||
-      speed.exitSpeedDeltaKmh < -comparison.config.thresholds.exitSpeedDeltaKmh);
+    (speed.minSpeedDeltaKmh < -comparison.config.rules.triggers.minSpeedDeltaKmh ||
+      speed.exitSpeedDeltaKmh < -comparison.config.rules.triggers.exitSpeedDeltaKmh);
   if (
     !transition ||
     !speed ||
     coastDelta === undefined ||
     targetCoastGap === undefined ||
-    coastDelta <= comparison.config.thresholds.coastingGapDeltaM ||
+    coastDelta <= comparison.config.rules.triggers.coastingGapDeltaM ||
     !losesSpeed
   ) {
     return undefined;
@@ -133,8 +132,8 @@ export function coastingMidCorner(
     practiceCue: "Blend from the brake into a small maintenance throttle so the car keeps rolling through the middle.",
     category: "throttle",
     severity:
-      coastDelta > THROTTLE_SEVERITY.coastingGapDeltaM ||
-      speed.exitSpeedDeltaKmh < THROTTLE_SEVERITY.highExitSpeedLossKmh
+      coastDelta > comparison.config.rules.severity.throttle.coastingGapDeltaM ||
+      speed.exitSpeedDeltaKmh < comparison.config.rules.severity.throttle.highExitSpeedLossKmh
         ? "high"
         : "medium",
     confidence: 0.72,
@@ -163,15 +162,15 @@ export function rushedBrakeToThrottle(
   const throttleDropDelta = transition?.throttleDropWhileBrakingDelta;
   const overlappingBrakeEntry =
     targetOverlap !== undefined &&
-    targetOverlap > comparison.config.thresholds.coastingGapDeltaM &&
+    targetOverlap > comparison.config.rules.triggers.coastingGapDeltaM &&
     throttleDrop !== undefined &&
-    throttleDrop > comparison.config.thresholds.pedalDepthDelta &&
-    (overlapDelta === undefined || overlapDelta > comparison.config.thresholds.coastingGapDeltaM / 2) &&
-    (throttleDropDelta === undefined || throttleDropDelta > comparison.config.thresholds.pedalDepthDelta / 2);
+    throttleDrop > comparison.config.rules.triggers.pedalDepthDelta &&
+    (overlapDelta === undefined || overlapDelta > comparison.config.rules.triggers.coastingGapDeltaM / 2) &&
+    (throttleDropDelta === undefined || throttleDropDelta > comparison.config.rules.triggers.pedalDepthDelta / 2);
   const poorOutcome =
     (lift?.liftCountDelta ?? 0) > 0 ||
-    (steering?.correctionCountDelta ?? 0) >= comparison.config.thresholds.correctionCountDelta ||
-    (speed?.exitSpeedDeltaKmh ?? 0) < -comparison.config.thresholds.exitSpeedDeltaKmh;
+    (steering?.correctionCountDelta ?? 0) >= comparison.config.rules.triggers.correctionCountDelta ||
+    (speed?.exitSpeedDeltaKmh ?? 0) < -comparison.config.rules.triggers.exitSpeedDeltaKmh;
   if (!transition || !overlappingBrakeEntry || !poorOutcome) {
     return undefined;
   }
@@ -184,8 +183,8 @@ export function rushedBrakeToThrottle(
     practiceCue: "Close the throttle before the brake marker, then make the brake application one clean input.",
     category: "throttle",
     severity:
-      targetOverlap > THROTTLE_SEVERITY.brakeThrottleOverlapM ||
-      (steering?.correctionCountDelta ?? 0) > THROTTLE_SEVERITY.extraCorrectionCountDelta
+      targetOverlap > comparison.config.rules.severity.throttle.brakeThrottleOverlapM ||
+      (steering?.correctionCountDelta ?? 0) > comparison.config.rules.severity.throttle.extraCorrectionCountDelta
         ? "high"
         : "medium",
     confidence: 0.68,
@@ -216,12 +215,12 @@ export function throttleBeforeSteeringUnwind(
   const throttleBeforeUnwind =
     firstDelta !== undefined &&
     unwindDelta !== undefined &&
-    firstDelta < -comparison.config.thresholds.throttleTimingDeltaM &&
-    unwindDelta > comparison.config.thresholds.throttleTimingDeltaM;
+    firstDelta < -comparison.config.rules.triggers.throttleTimingDeltaM &&
+    unwindDelta > comparison.config.rules.triggers.throttleTimingDeltaM;
   const poorOutcome =
     (lift?.liftCountDelta ?? 0) > 0 ||
-    (steering?.correctionCountDelta ?? 0) >= comparison.config.thresholds.correctionCountDelta ||
-    (speed?.exitSpeedDeltaKmh ?? 0) < -comparison.config.thresholds.exitSpeedDeltaKmh;
+    (steering?.correctionCountDelta ?? 0) >= comparison.config.rules.triggers.correctionCountDelta ||
+    (speed?.exitSpeedDeltaKmh ?? 0) < -comparison.config.rules.triggers.exitSpeedDeltaKmh;
 
   if (!throttleBeforeUnwind || !poorOutcome) {
     return undefined;
@@ -235,9 +234,9 @@ export function throttleBeforeSteeringUnwind(
     practiceCue: "Hold maintenance throttle until your hands start opening, then build the pedal with the unwind.",
     category: "throttle",
     severity:
-      Math.abs(firstDelta) > THROTTLE_SEVERITY.throttleTimingDeltaM ||
-      unwindDelta > THROTTLE_SEVERITY.liftDurationDeltaM ||
-      (speed?.exitSpeedDeltaKmh ?? 0) < THROTTLE_SEVERITY.highExitSpeedLossKmh
+      Math.abs(firstDelta) > comparison.config.rules.severity.throttle.throttleTimingDeltaM ||
+      unwindDelta > comparison.config.rules.severity.throttle.liftDurationDeltaM ||
+      (speed?.exitSpeedDeltaKmh ?? 0) < comparison.config.rules.severity.throttle.highExitSpeedLossKmh
         ? "high"
         : "medium",
     confidence: 0.7,
@@ -268,13 +267,13 @@ export function throttleReappliedWhileBraking(
   const lift = comparison.metrics.throttleLiftQuality;
   const clearRise =
     targetRise !== undefined &&
-    targetRise.rise > comparison.config.thresholds.throttleRiseWhileBrakingDelta &&
-    targetRise.peakBrake > comparison.config.thresholds.pedalDepthDelta &&
-    (riseDelta === undefined || riseDelta > comparison.config.thresholds.throttleRiseWhileBrakingDelta / 2);
+    targetRise.rise > comparison.config.rules.triggers.throttleRiseWhileBrakingDelta &&
+    targetRise.peakBrake > comparison.config.rules.triggers.pedalDepthDelta &&
+    (riseDelta === undefined || riseDelta > comparison.config.rules.triggers.throttleRiseWhileBrakingDelta / 2);
   const poorOutcome =
     (lift?.liftCountDelta ?? 0) > 0 ||
-    (steering?.correctionCountDelta ?? 0) >= comparison.config.thresholds.correctionCountDelta ||
-    (speed?.exitSpeedDeltaKmh ?? 0) < -comparison.config.thresholds.exitSpeedDeltaKmh;
+    (steering?.correctionCountDelta ?? 0) >= comparison.config.rules.triggers.correctionCountDelta ||
+    (speed?.exitSpeedDeltaKmh ?? 0) < -comparison.config.rules.triggers.exitSpeedDeltaKmh;
 
   if (!clearRise || !poorOutcome) {
     return undefined;
@@ -288,9 +287,9 @@ export function throttleReappliedWhileBraking(
     practiceCue: "Finish the brake release first, then reapply throttle in one progressive squeeze.",
     category: "throttle",
     severity:
-      targetRise.rise > THROTTLE_SEVERITY.liftDepth ||
+      targetRise.rise > comparison.config.rules.severity.throttle.liftDepth ||
       targetRise.peakBrake > 0.5 ||
-      (steering?.correctionCountDelta ?? 0) > THROTTLE_SEVERITY.extraCorrectionCountDelta
+      (steering?.correctionCountDelta ?? 0) > comparison.config.rules.severity.throttle.extraCorrectionCountDelta
         ? "high"
         : "medium",
     confidence: 0.69,
@@ -319,10 +318,10 @@ export function exitAccelerationDeficit(
   const apexGainDelta = speedShape?.apexToExitGainDeltaKmh;
   const accelerationLoss =
     gainDelta !== undefined &&
-    gainDelta < -comparison.config.thresholds.exitAccelerationDeltaKmh;
+    gainDelta < -comparison.config.rules.triggers.exitAccelerationDeltaKmh;
   const apexAccelerationLoss =
     apexGainDelta !== undefined &&
-    apexGainDelta < -comparison.config.thresholds.exitAccelerationDeltaKmh;
+    apexGainDelta < -comparison.config.rules.triggers.exitAccelerationDeltaKmh;
 
   if (!speedShape || !speed || (!accelerationLoss && !apexAccelerationLoss)) {
     return undefined;
@@ -344,8 +343,8 @@ export function exitAccelerationDeficit(
     practiceCue: "Focus on opening the wheel and pedal together so acceleration starts building as soon as the car is pointed.",
     category: "throttle",
     severity:
-      primaryDelta < THROTTLE_SEVERITY.exitAccelerationLossKmh ||
-      speed.exitSpeedDeltaKmh < THROTTLE_SEVERITY.highExitSpeedLossKmh
+      primaryDelta < comparison.config.rules.severity.throttle.exitAccelerationLossKmh ||
+      speed.exitSpeedDeltaKmh < comparison.config.rules.severity.throttle.highExitSpeedLossKmh
         ? "high"
         : "medium",
     confidence: 0.71,
@@ -377,8 +376,8 @@ export function unnecessaryThrottleLift(
     !lift ||
     lift.targetLiftCount === 0 ||
     lift.referenceLiftCount > 0 ||
-    lift.targetMaxLiftDepth < comparison.config.thresholds.pedalDepthDelta ||
-    Math.min(speed.exitSpeedDeltaKmh, speed.averageSpeedDeltaKmh) >= -comparison.config.thresholds.exitSpeedDeltaKmh
+    lift.targetMaxLiftDepth < comparison.config.rules.triggers.pedalDepthDelta ||
+    Math.min(speed.exitSpeedDeltaKmh, speed.averageSpeedDeltaKmh) >= -comparison.config.rules.triggers.exitSpeedDeltaKmh
   ) {
     return undefined;
   }
@@ -391,8 +390,8 @@ export function unnecessaryThrottleLift(
     practiceCue: "Open the wheel and pedal together so the first confident throttle application can stay in.",
     category: "throttle",
     severity:
-      lift.targetMaxLiftDepth > THROTTLE_SEVERITY.liftDepth ||
-      speed.exitSpeedDeltaKmh < THROTTLE_SEVERITY.highExitSpeedLossKmh
+      lift.targetMaxLiftDepth > comparison.config.rules.severity.throttle.liftDepth ||
+      speed.exitSpeedDeltaKmh < comparison.config.rules.severity.throttle.highExitSpeedLossKmh
         ? "high"
         : "medium",
     confidence: 0.74,
@@ -417,7 +416,7 @@ export function deepThrottleLift(
   if (
     !lift ||
     lift.targetLiftCount === 0 ||
-    lift.maxLiftDepthDelta <= comparison.config.thresholds.pedalDepthDelta
+    lift.maxLiftDepthDelta <= comparison.config.rules.triggers.pedalDepthDelta
   ) {
     return undefined;
   }
@@ -429,7 +428,7 @@ export function deepThrottleLift(
     why: "Your throttle drop is materially deeper than the reference, which can unsettle the car or delay the exit drive.",
     practiceCue: "If you need to breathe the throttle, make it a smaller trim instead of a full confidence reset.",
     category: "throttle",
-    severity: lift.maxLiftDepthDelta > THROTTLE_SEVERITY.liftDepthDelta ? "high" : "medium",
+    severity: lift.maxLiftDepthDelta > comparison.config.rules.severity.throttle.liftDepthDelta ? "high" : "medium",
     confidence: 0.7,
     evidence: [
       makeEvidence("Lift depth delta", formatPedalPointDelta(-lift.maxLiftDepthDelta), "delta", "primary", {
@@ -451,7 +450,7 @@ export function longThrottleLift(
     !lift ||
     durationDelta === undefined ||
     lift.targetLiftCount === 0 ||
-    durationDelta <= comparison.config.thresholds.pedalDurationDeltaM
+    durationDelta <= comparison.config.rules.triggers.pedalDurationDeltaM
   ) {
     return undefined;
   }
@@ -463,7 +462,7 @@ export function longThrottleLift(
     why: "Your longest lift lasts farther down the road than the reference, so the car spends longer waiting before the exit drive rebuilds.",
     practiceCue: "Use a quick breath if needed, then return to a progressive throttle ramp as soon as the car accepts it.",
     category: "throttle",
-    severity: durationDelta > THROTTLE_SEVERITY.liftDurationDeltaM ? "high" : "medium",
+    severity: durationDelta > comparison.config.rules.severity.throttle.liftDurationDeltaM ? "high" : "medium",
     confidence: 0.69,
     evidence: [
       makeEvidence("Lift duration delta", formatDistanceDuration(durationDelta), "delta", "primary", {

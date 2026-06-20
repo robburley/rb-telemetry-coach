@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  createAnalysisConfig,
   defaultAnalysisConfig,
   metresPerSecondToKilometresPerHour,
   type AnalysisMetadata,
@@ -74,7 +75,8 @@ describe("domain type exports", () => {
     };
 
     expect(report.status).toBe("complete");
-    expect(defaultAnalysisConfig.resampleStepM).toBe(1);
+    expect(defaultAnalysisConfig.resampling.resampleStepM).toBe(1);
+    expect(createAnalysisConfig({ smoothing: { brake: 2 } }).smoothing.speed).toBe(10);
     expect(metresPerSecondToKilometresPerHour(10)).toBe(36);
   });
 });

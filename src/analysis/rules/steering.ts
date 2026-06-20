@@ -1,5 +1,4 @@
 import { formatDegreesDelta, formatDistanceDelta, formatHeadingDelta, formatSpeedDelta, makeEvidence } from "../evidence";
-import { STEERING_SEVERITY } from "./constants/steering";
 import type { RuleDefinition } from "./index";
 
 export const steeringRules: RuleDefinition[] = [
@@ -16,7 +15,7 @@ export function excessiveSteering(
   comparison: Parameters<RuleDefinition>[0],
 ): ReturnType<RuleDefinition> {
   const steering = comparison.metrics.steering;
-  if (!steering || steering.peakSteeringDeltaDeg <= comparison.config.thresholds.steeringPeakDeltaDeg) {
+  if (!steering || steering.peakSteeringDeltaDeg <= comparison.config.rules.triggers.steeringPeakDeltaDeg) {
     return undefined;
   }
 
@@ -27,7 +26,7 @@ export function excessiveSteering(
     why: "You need more wheel than the reference, which usually means the car is being asked to turn after grip is already loaded.",
     practiceCue: "Slow your hands at peak load and let brake release help the nose turn.",
     category: "steering",
-    severity: steering.peakSteeringDeltaDeg > STEERING_SEVERITY.peakSteeringDeltaDeg ? "high" : "medium",
+    severity: steering.peakSteeringDeltaDeg > comparison.config.rules.severity.steering.peakSteeringDeltaDeg ? "high" : "medium",
     confidence: 0.74,
     evidence: [makeEvidence("Peak steering", formatDegreesDelta(steering.peakSteeringDeltaDeg), "delta", "primary", { deltaDeg: steering.peakSteeringDeltaDeg })],
   };
@@ -45,13 +44,13 @@ export function tooMuchSteeringWhileBraking(
   const target = coordination?.targetSteeringWhileBraking;
   const overloaded =
     target !== undefined &&
-    ((peakDelta !== undefined && peakDelta > comparison.config.thresholds.steeringWhileBrakingDeltaDeg) ||
-      (averageDelta !== undefined && averageDelta > comparison.config.thresholds.steeringWhileBrakingDeltaDeg / 2));
+    ((peakDelta !== undefined && peakDelta > comparison.config.rules.triggers.steeringWhileBrakingDeltaDeg) ||
+      (averageDelta !== undefined && averageDelta > comparison.config.rules.triggers.steeringWhileBrakingDeltaDeg / 2));
   const steeringLoadDelta = peakDelta ?? averageDelta ?? 0;
   const poorOutcome =
-    (steering?.correctionCountDelta ?? 0) >= comparison.config.thresholds.correctionCountDelta ||
-    (speed?.minSpeedDeltaKmh ?? 0) < -comparison.config.thresholds.minSpeedDeltaKmh ||
-    (rotation?.apexHeadingDeltaDeg ?? rotation?.minSpeedHeadingDeltaDeg ?? 0) < -comparison.config.thresholds.headingDeltaDeg;
+    (steering?.correctionCountDelta ?? 0) >= comparison.config.rules.triggers.correctionCountDelta ||
+    (speed?.minSpeedDeltaKmh ?? 0) < -comparison.config.rules.triggers.minSpeedDeltaKmh ||
+    (rotation?.apexHeadingDeltaDeg ?? rotation?.minSpeedHeadingDeltaDeg ?? 0) < -comparison.config.rules.triggers.headingDeltaDeg;
 
   if (!overloaded || !poorOutcome) {
     return undefined;
@@ -65,8 +64,8 @@ export function tooMuchSteeringWhileBraking(
     practiceCue: "Bleed brake pressure as steering builds so the front tyres are not asked for peak braking and turning together.",
     category: "steering",
     severity:
-      (peakDelta ?? 0) > STEERING_SEVERITY.peakSteeringDeltaDeg ||
-      (speed?.minSpeedDeltaKmh ?? 0) < STEERING_SEVERITY.highSpeedLossKmh
+      (peakDelta ?? 0) > comparison.config.rules.severity.steering.peakSteeringDeltaDeg ||
+      (speed?.minSpeedDeltaKmh ?? 0) < comparison.config.rules.severity.steering.highSpeedLossKmh
         ? "high"
         : "medium",
     confidence: 0.68,
@@ -91,7 +90,7 @@ export function lateSteeringUnwind(
   comparison: Parameters<RuleDefinition>[0],
 ): ReturnType<RuleDefinition> {
   const delta = comparison.metrics.steering?.steeringUnwindDeltaM;
-  if (delta === undefined || delta <= comparison.config.thresholds.throttleTimingDeltaM) {
+  if (delta === undefined || delta <= comparison.config.rules.triggers.throttleTimingDeltaM) {
     return undefined;
   }
 
@@ -102,7 +101,7 @@ export function lateSteeringUnwind(
     why: "Your steering stays loaded for longer than the reference, delaying how early the car can accept throttle.",
     practiceCue: "As soon as the car points, start opening your hands before asking for full power.",
     category: "steering",
-    severity: delta > STEERING_SEVERITY.steeringUnwindDeltaM ? "high" : "medium",
+    severity: delta > comparison.config.rules.severity.steering.steeringUnwindDeltaM ? "high" : "medium",
     confidence: 0.72,
     evidence: [makeEvidence("Steering unwind", formatDistanceDelta(delta), "delta", "primary", { deltaM: delta })],
   };
@@ -115,7 +114,7 @@ export function poorRotation(
   const braking = comparison.metrics.braking;
   if (
     !steering ||
-    steering.peakSteeringDeltaDeg <= comparison.config.thresholds.steeringPeakDeltaDeg ||
+    steering.peakSteeringDeltaDeg <= comparison.config.rules.triggers.steeringPeakDeltaDeg ||
     (braking?.brakeReleaseDeltaM !== undefined && braking.brakeReleaseDeltaM >= 0)
   ) {
     return undefined;
@@ -145,14 +144,14 @@ export function underRotatedAtApex(
   const line = comparison.metrics.lineUsage;
   const apexDelta = rotation?.apexHeadingDeltaDeg ?? rotation?.minSpeedHeadingDeltaDeg;
   const lineOrSteeringSupport =
-    (steering?.peakSteeringDeltaDeg ?? 0) > comparison.config.thresholds.steeringPeakDeltaDeg ||
+    (steering?.peakSteeringDeltaDeg ?? 0) > comparison.config.rules.triggers.steeringPeakDeltaDeg ||
     (line !== undefined &&
       line.cornerDirection !== "ambiguous" &&
-      Math.abs(line.apex.averageLateralOffsetM) > comparison.config.thresholds.lateralOffsetDeltaM);
+      Math.abs(line.apex.averageLateralOffsetM) > comparison.config.rules.triggers.lateralOffsetDeltaM);
   if (
     !rotation ||
     apexDelta === undefined ||
-    apexDelta >= -comparison.config.thresholds.headingDeltaDeg ||
+    apexDelta >= -comparison.config.rules.triggers.headingDeltaDeg ||
     !lineOrSteeringSupport
   ) {
     return undefined;
@@ -165,7 +164,7 @@ export function underRotatedAtApex(
     why: "Compared with the reference, the car has less heading change around the apex while line or steering evidence also points to unfinished rotation.",
     practiceCue: "Use the brake release and initial steering to finish rotation before committing to the exit.",
     category: "rotation",
-    severity: apexDelta < STEERING_SEVERITY.underRotationHeadingDeltaDeg ? "high" : "medium",
+    severity: apexDelta < comparison.config.rules.severity.steering.underRotationHeadingDeltaDeg ? "high" : "medium",
     confidence: 0.66,
     evidence: [
       makeEvidence("Apex rotation", formatHeadingDelta(apexDelta), "delta", "primary", { headingDeltaDeg: apexDelta }),
@@ -185,20 +184,20 @@ export function delayedRotation(
   const speed = comparison.metrics.speed;
   const delta = rotation?.targetReferenceEquivalentHeadingDistanceDeltaM;
   const comparableFinalRotation =
-    (rotation?.headingChangeDeltaDeg ?? 0) >= -comparison.config.thresholds.headingDeltaDeg;
+    (rotation?.headingChangeDeltaDeg ?? 0) >= -comparison.config.rules.triggers.headingDeltaDeg;
   const supportingCost =
-    (steering?.steeringUnwindDeltaM ?? 0) > comparison.config.thresholds.throttleTimingDeltaM ||
-    (speed?.exitSpeedDeltaKmh ?? 0) < -comparison.config.thresholds.exitSpeedDeltaKmh ||
+    (steering?.steeringUnwindDeltaM ?? 0) > comparison.config.rules.triggers.throttleTimingDeltaM ||
+    (speed?.exitSpeedDeltaKmh ?? 0) < -comparison.config.rules.triggers.exitSpeedDeltaKmh ||
     (line !== undefined &&
       line.cornerDirection !== "ambiguous" &&
-      Math.abs(line.apex.averageLateralOffsetM) > comparison.config.thresholds.lateralOffsetDeltaM);
+      Math.abs(line.apex.averageLateralOffsetM) > comparison.config.rules.triggers.lateralOffsetDeltaM);
 
   if (
     !rotation ||
     !line ||
     line.cornerDirection === "ambiguous" ||
     delta === undefined ||
-    delta <= comparison.config.thresholds.apexTimingDeltaM ||
+    delta <= comparison.config.rules.triggers.apexTimingDeltaM ||
     !comparableFinalRotation ||
     !supportingCost
   ) {
@@ -212,7 +211,7 @@ export function delayedRotation(
     why: "You reach the reference apex heading later, so the car is pointed late even though the final rotation is comparable.",
     practiceCue: "Use the brake release and initial steering to start the yaw earlier, then reduce steering as the car points.",
     category: "rotation",
-    severity: delta > STEERING_SEVERITY.rotationTimingDeltaM ? "high" : "medium",
+    severity: delta > comparison.config.rules.severity.steering.rotationTimingDeltaM ? "high" : "medium",
     confidence: 0.65,
     evidence: [
       makeEvidence("Rotation timing", formatDistanceDelta(delta), "delta", "primary", {
@@ -233,16 +232,16 @@ export function minimumSpeedTooEarlyOrLate(
 ): ReturnType<RuleDefinition> {
   const speed = comparison.metrics.speed;
   const delta = speed?.minSpeedDistanceDeltaM;
-  if (!speed || delta === undefined || Math.abs(delta) <= comparison.config.thresholds.minSpeedLocationDeltaM) {
+  if (!speed || delta === undefined || Math.abs(delta) <= comparison.config.rules.triggers.minSpeedLocationDeltaM) {
     return undefined;
   }
 
   const early = delta < 0;
-  const speedLoss = speed.minSpeedDeltaKmh < -comparison.config.thresholds.minSpeedDeltaKmh;
-  const exitLoss = speed.exitSpeedDeltaKmh < -comparison.config.thresholds.exitSpeedDeltaKmh;
+  const speedLoss = speed.minSpeedDeltaKmh < -comparison.config.rules.triggers.minSpeedDeltaKmh;
+  const exitLoss = speed.exitSpeedDeltaKmh < -comparison.config.rules.triggers.exitSpeedDeltaKmh;
   const weakExitGain =
     (comparison.metrics.speedShape?.minSpeedToExitGainDeltaKmh ?? 0) <
-    -comparison.config.thresholds.exitAccelerationDeltaKmh;
+    -comparison.config.rules.triggers.exitAccelerationDeltaKmh;
   if (early ? !speedLoss : !exitLoss && !weakExitGain) {
     return undefined;
   }
@@ -259,9 +258,9 @@ export function minimumSpeedTooEarlyOrLate(
       : "Complete the braking and rotation sooner so speed can rebuild before the exit.",
     category: "rotation",
     severity:
-      Math.abs(delta) > STEERING_SEVERITY.minSpeedLocationDeltaM ||
-      speed.minSpeedDeltaKmh < STEERING_SEVERITY.highSpeedLossKmh ||
-      speed.exitSpeedDeltaKmh < STEERING_SEVERITY.highSpeedLossKmh
+      Math.abs(delta) > comparison.config.rules.severity.steering.minSpeedLocationDeltaM ||
+      speed.minSpeedDeltaKmh < comparison.config.rules.severity.steering.highSpeedLossKmh ||
+      speed.exitSpeedDeltaKmh < comparison.config.rules.severity.steering.highSpeedLossKmh
         ? "high"
         : "medium",
     confidence: 0.63,

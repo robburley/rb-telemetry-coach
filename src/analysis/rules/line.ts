@@ -1,5 +1,4 @@
 import { formatDistanceAt, formatDistanceDelta, formatLateralOffset, formatSpeedDelta, makeEvidence } from "../evidence";
-import { LINE_SEVERITY } from "./constants/line";
 import type { RuleDefinition } from "./index";
 
 export const lineRules: RuleDefinition[] = [
@@ -20,8 +19,8 @@ export function overDrivingEntry(
   const braking = comparison.metrics.braking;
   if (
     !speed ||
-    speed.entrySpeedDeltaKmh <= comparison.config.thresholds.minSpeedDeltaKmh ||
-    speed.minSpeedDeltaKmh >= -comparison.config.thresholds.minSpeedDeltaKmh ||
+    speed.entrySpeedDeltaKmh <= comparison.config.rules.triggers.minSpeedDeltaKmh ||
+    speed.minSpeedDeltaKmh >= -comparison.config.rules.triggers.minSpeedDeltaKmh ||
     (braking?.brakeStartDeltaM !== undefined && braking.brakeStartDeltaM < 0)
   ) {
     return undefined;
@@ -34,7 +33,7 @@ export function overDrivingEntry(
     why: "You arrive faster but then drop below the reference at minimum speed, which points to asking too much on entry.",
     practiceCue: "Trade a small amount of entry speed for a cleaner brake release and higher roll speed.",
     category: "line",
-    severity: speed.minSpeedDeltaKmh < LINE_SEVERITY.highSpeedLossKmh ? "high" : "medium",
+    severity: speed.minSpeedDeltaKmh < comparison.config.rules.severity.line.highSpeedLossKmh ? "high" : "medium",
     confidence: 0.75,
     evidence: [
       makeEvidence("Entry speed", formatSpeedDelta(speed.entrySpeedDeltaKmh), "delta", "primary", { deltaKmh: speed.entrySpeedDeltaKmh }),
@@ -50,13 +49,13 @@ export function unusedTrackOnEntryRelativeToReference(
   const speed = comparison.metrics.speed;
   const insideOffset = signedInsideOffset(line?.entry.averageLateralOffsetM, line?.cornerDirection);
   const poorOutcome =
-    (speed?.minSpeedDeltaKmh ?? 0) < -comparison.config.thresholds.minSpeedDeltaKmh ||
-    (comparison.metrics.steering?.peakSteeringDeltaDeg ?? 0) > comparison.config.thresholds.steeringPeakDeltaDeg;
+    (speed?.minSpeedDeltaKmh ?? 0) < -comparison.config.rules.triggers.minSpeedDeltaKmh ||
+    (comparison.metrics.steering?.peakSteeringDeltaDeg ?? 0) > comparison.config.rules.triggers.steeringPeakDeltaDeg;
   if (
     !line ||
     line.cornerDirection === "ambiguous" ||
     insideOffset === undefined ||
-    insideOffset <= comparison.config.thresholds.lateralOffsetDeltaM ||
+    insideOffset <= comparison.config.rules.triggers.lateralOffsetDeltaM ||
     !poorOutcome
   ) {
     return undefined;
@@ -69,7 +68,7 @@ export function unusedTrackOnEntryRelativeToReference(
     why: "Compared with the reference, you start the corner farther inside and then pay with speed loss or extra steering load.",
     practiceCue: "Open the entry by a small amount so the car has more radius before the apex.",
     category: "line",
-    severity: insideOffset > LINE_SEVERITY.unusedEntryInsideOffsetM ? "high" : "medium",
+    severity: insideOffset > comparison.config.rules.severity.line.unusedEntryInsideOffsetM ? "high" : "medium",
     confidence: 0.64,
     evidence: [
       makeEvidence("Entry offset", formatLateralOffset(line.entry.averageLateralOffsetM), "delta", "primary", {
@@ -89,14 +88,14 @@ export function missedApexRelativeToReference(
   const speed = comparison.metrics.speed;
   const insideOffset = signedInsideOffset(line?.apex.averageLateralOffsetM, line?.cornerDirection);
   const poorOutcome =
-    (speed?.minSpeedDeltaKmh ?? 0) < -comparison.config.thresholds.minSpeedDeltaKmh ||
-    (comparison.metrics.steering?.peakSteeringDeltaDeg ?? 0) > comparison.config.thresholds.steeringPeakDeltaDeg ||
-    (comparison.metrics.headingRotation?.apexHeadingDeltaDeg ?? 0) < -comparison.config.thresholds.headingDeltaDeg;
+    (speed?.minSpeedDeltaKmh ?? 0) < -comparison.config.rules.triggers.minSpeedDeltaKmh ||
+    (comparison.metrics.steering?.peakSteeringDeltaDeg ?? 0) > comparison.config.rules.triggers.steeringPeakDeltaDeg ||
+    (comparison.metrics.headingRotation?.apexHeadingDeltaDeg ?? 0) < -comparison.config.rules.triggers.headingDeltaDeg;
   if (
     !line ||
     line.cornerDirection === "ambiguous" ||
     insideOffset === undefined ||
-    insideOffset >= -comparison.config.thresholds.lateralOffsetDeltaM ||
+    insideOffset >= -comparison.config.rules.triggers.lateralOffsetDeltaM ||
     !poorOutcome
   ) {
     return undefined;
@@ -109,7 +108,7 @@ export function missedApexRelativeToReference(
     why: "Compared with the reference, your apex window stays farther outside and the corner also shows speed, steering, or rotation cost.",
     practiceCue: "Aim the release and steering build so the car reaches the same inside reference before opening exit.",
     category: "line",
-    severity: Math.abs(insideOffset) > LINE_SEVERITY.apexOffsetM ? "high" : "medium",
+    severity: Math.abs(insideOffset) > comparison.config.rules.severity.line.apexOffsetM ? "high" : "medium",
     confidence: 0.67,
     evidence: [
       makeEvidence("Apex offset", formatLateralOffset(line.apex.averageLateralOffsetM), "delta", "primary", {
@@ -132,18 +131,18 @@ export function lateApex(
   const throttle = comparison.metrics.throttle;
   const delta = apex?.distanceDeltaM;
   const exitSpeedLoss =
-    (speed?.exitSpeedDeltaKmh ?? 0) < -comparison.config.thresholds.exitSpeedDeltaKmh;
+    (speed?.exitSpeedDeltaKmh ?? 0) < -comparison.config.rules.triggers.exitSpeedDeltaKmh;
   const lateUnwind =
-    (steering?.steeringUnwindDeltaM ?? 0) > comparison.config.thresholds.throttleTimingDeltaM;
+    (steering?.steeringUnwindDeltaM ?? 0) > comparison.config.rules.triggers.throttleTimingDeltaM;
   const delayedThrottle =
-    (throttle?.fullThrottleDeltaM ?? 0) > comparison.config.thresholds.throttleTimingDeltaM;
+    (throttle?.fullThrottleDeltaM ?? 0) > comparison.config.rules.triggers.throttleTimingDeltaM;
 
   if (
     !apex ||
     !line ||
     line.cornerDirection === "ambiguous" ||
     delta === undefined ||
-    delta <= comparison.config.thresholds.apexTimingDeltaM ||
+    delta <= comparison.config.rules.triggers.apexTimingDeltaM ||
     (!exitSpeedLoss && !lateUnwind && !delayedThrottle)
   ) {
     return undefined;
@@ -157,8 +156,8 @@ export function lateApex(
     practiceCue: "Start the rotation a little sooner so the car can point and release before the exit opens.",
     category: "line",
     severity:
-      delta > LINE_SEVERITY.apexTimingDeltaM ||
-      (speed?.exitSpeedDeltaKmh ?? 0) < LINE_SEVERITY.highSpeedLossKmh
+      delta > comparison.config.rules.severity.line.apexTimingDeltaM ||
+      (speed?.exitSpeedDeltaKmh ?? 0) < comparison.config.rules.severity.line.highSpeedLossKmh
         ? "high"
         : "medium",
     confidence: 0.64,
@@ -189,18 +188,18 @@ export function earlyApexPinchedExit(
   const insideExitOffset = signedInsideOffset(line?.exit.averageLateralOffsetM, line?.cornerDirection);
   const pinchedExit =
     insideExitOffset !== undefined &&
-    insideExitOffset > comparison.config.thresholds.lateralOffsetDeltaM;
+    insideExitOffset > comparison.config.rules.triggers.lateralOffsetDeltaM;
   const exitSpeedLoss =
-    (speed?.exitSpeedDeltaKmh ?? 0) < -comparison.config.thresholds.exitSpeedDeltaKmh;
+    (speed?.exitSpeedDeltaKmh ?? 0) < -comparison.config.rules.triggers.exitSpeedDeltaKmh;
   const lateUnwind =
-    (steering?.steeringUnwindDeltaM ?? 0) > comparison.config.thresholds.throttleTimingDeltaM;
+    (steering?.steeringUnwindDeltaM ?? 0) > comparison.config.rules.triggers.throttleTimingDeltaM;
 
   if (
     !apex ||
     !line ||
     line.cornerDirection === "ambiguous" ||
     delta === undefined ||
-    delta >= -comparison.config.thresholds.apexTimingDeltaM ||
+    delta >= -comparison.config.rules.triggers.apexTimingDeltaM ||
     (!pinchedExit && !exitSpeedLoss && !lateUnwind)
   ) {
     return undefined;
@@ -214,9 +213,9 @@ export function earlyApexPinchedExit(
     practiceCue: "Give up a little early inside distance so the car can unwind and use the reference exit width.",
     category: "line",
     severity:
-      delta < -LINE_SEVERITY.apexTimingDeltaM ||
-      (insideExitOffset ?? 0) > LINE_SEVERITY.exitInsideOffsetM ||
-      (speed?.exitSpeedDeltaKmh ?? 0) < LINE_SEVERITY.highSpeedLossKmh
+      delta < -comparison.config.rules.severity.line.apexTimingDeltaM ||
+      (insideExitOffset ?? 0) > comparison.config.rules.severity.line.exitInsideOffsetM ||
+      (speed?.exitSpeedDeltaKmh ?? 0) < comparison.config.rules.severity.line.highSpeedLossKmh
         ? "high"
         : "medium",
     confidence: 0.64,
@@ -245,15 +244,15 @@ export function pinchedExitRelativeToReference(
   const insideOffset = signedInsideOffset(line?.exit.averageLateralOffsetM, line?.cornerDirection);
   const delayedFullThrottle =
     throttle?.fullThrottleDeltaM !== undefined &&
-    throttle.fullThrottleDeltaM > comparison.config.thresholds.throttleTimingDeltaM;
+    throttle.fullThrottleDeltaM > comparison.config.rules.triggers.throttleTimingDeltaM;
   const poorOutcome =
-    (speed?.exitSpeedDeltaKmh ?? 0) < -comparison.config.thresholds.exitSpeedDeltaKmh ||
+    (speed?.exitSpeedDeltaKmh ?? 0) < -comparison.config.rules.triggers.exitSpeedDeltaKmh ||
     delayedFullThrottle;
   if (
     !line ||
     line.cornerDirection === "ambiguous" ||
     insideOffset === undefined ||
-    insideOffset <= comparison.config.thresholds.lateralOffsetDeltaM ||
+    insideOffset <= comparison.config.rules.triggers.lateralOffsetDeltaM ||
     !poorOutcome
   ) {
     return undefined;
@@ -267,8 +266,8 @@ export function pinchedExitRelativeToReference(
     practiceCue: "Let the car release toward the reference exit path as the wheel opens.",
     category: "line",
     severity:
-      insideOffset > LINE_SEVERITY.exitInsideOffsetM ||
-      (speed?.exitSpeedDeltaKmh ?? 0) < LINE_SEVERITY.highSpeedLossKmh
+      insideOffset > comparison.config.rules.severity.line.exitInsideOffsetM ||
+      (speed?.exitSpeedDeltaKmh ?? 0) < comparison.config.rules.severity.line.highSpeedLossKmh
         ? "high"
         : "medium",
     confidence: 0.66,
@@ -294,20 +293,20 @@ export function pathDeviationHotspot(
   const distancePct = path?.maxPathDeltaDistancePct;
   const hasSpeedCost =
     speed !== undefined &&
-    (speed.exitSpeedDeltaKmh < -comparison.config.thresholds.exitSpeedDeltaKmh ||
-      speed.minSpeedDeltaKmh < -comparison.config.thresholds.minSpeedDeltaKmh ||
-      speed.averageSpeedDeltaKmh < -comparison.config.thresholds.minSpeedDeltaKmh);
+    (speed.exitSpeedDeltaKmh < -comparison.config.rules.triggers.exitSpeedDeltaKmh ||
+      speed.minSpeedDeltaKmh < -comparison.config.rules.triggers.minSpeedDeltaKmh ||
+      speed.averageSpeedDeltaKmh < -comparison.config.rules.triggers.minSpeedDeltaKmh);
   const hasSteeringCost =
-    (steering?.peakSteeringDeltaDeg ?? 0) > comparison.config.thresholds.steeringPeakDeltaDeg;
+    (steering?.peakSteeringDeltaDeg ?? 0) > comparison.config.rules.triggers.steeringPeakDeltaDeg;
   const hasLineSupport =
     line !== undefined &&
     line.cornerDirection !== "ambiguous" &&
-    line.maxAbsLateralOffsetM > comparison.config.thresholds.lateralOffsetDeltaM;
+    line.maxAbsLateralOffsetM > comparison.config.rules.triggers.lateralOffsetDeltaM;
 
   if (
     deltaM === undefined ||
     distancePct === undefined ||
-    deltaM <= comparison.config.thresholds.pathDeviationDeltaM ||
+    deltaM <= comparison.config.rules.triggers.pathDeviationDeltaM ||
     !hasLineSupport ||
     (!hasSpeedCost && !hasSteeringCost)
   ) {
@@ -322,8 +321,8 @@ export function pathDeviationHotspot(
     practiceCue: "Pick one visual marker around the largest separation and compare whether that line helps the exit build.",
     category: "line",
     severity:
-      deltaM > LINE_SEVERITY.pathDeviationDeltaM ||
-      (speed?.exitSpeedDeltaKmh ?? 0) < LINE_SEVERITY.highSpeedLossKmh
+      deltaM > comparison.config.rules.severity.line.pathDeviationDeltaM ||
+      (speed?.exitSpeedDeltaKmh ?? 0) < comparison.config.rules.severity.line.highSpeedLossKmh
         ? "high"
         : "medium",
     confidence: 0.6,
@@ -351,14 +350,14 @@ export function wideWithoutBenefit(
   const outsideOffset = insideOffset === undefined ? undefined : -insideOffset;
   const noSpeedGain =
     speed !== undefined &&
-    speed.averageSpeedDeltaKmh <= comparison.config.thresholds.minSpeedDeltaKmh &&
-    (speed.exitSpeedDeltaKmh < -comparison.config.thresholds.exitSpeedDeltaKmh ||
-      speed.minSpeedDeltaKmh < -comparison.config.thresholds.minSpeedDeltaKmh);
+    speed.averageSpeedDeltaKmh <= comparison.config.rules.triggers.minSpeedDeltaKmh &&
+    (speed.exitSpeedDeltaKmh < -comparison.config.rules.triggers.exitSpeedDeltaKmh ||
+      speed.minSpeedDeltaKmh < -comparison.config.rules.triggers.minSpeedDeltaKmh);
   if (
     !line ||
     line.cornerDirection === "ambiguous" ||
     outsideOffset === undefined ||
-    outsideOffset <= comparison.config.thresholds.lateralOffsetDeltaM ||
+    outsideOffset <= comparison.config.rules.triggers.lateralOffsetDeltaM ||
     !noSpeedGain
   ) {
     return undefined;
@@ -371,7 +370,7 @@ export function wideWithoutBenefit(
     why: "Compared with the reference, your line runs wider but does not produce a minimum-speed or exit-speed benefit.",
     practiceCue: "Use the wider arc only if it lets you carry or build speed; otherwise return toward the reference path.",
     category: "line",
-    severity: outsideOffset > LINE_SEVERITY.wideApexOffsetM ? "high" : "medium",
+    severity: outsideOffset > comparison.config.rules.severity.line.wideApexOffsetM ? "high" : "medium",
     confidence: 0.61,
     evidence: [
       makeEvidence("Apex offset", formatLateralOffset(line.apex.averageLateralOffsetM), "delta", "primary", {

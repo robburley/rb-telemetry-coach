@@ -1,5 +1,4 @@
 import { formatSpeedDelta, makeEvidence } from "../evidence";
-import { GEARING_SEVERITY } from "./constants/gearing";
 import type { RuleDefinition } from "./index";
 
 export const gearingRules: RuleDefinition[] = [
@@ -15,23 +14,23 @@ export function wrongGearOnExit(
   const speed = comparison.metrics.speed;
   const throttle = comparison.metrics.throttle;
   const exitGearDelta = gearRpm?.exitGearDelta;
-  if (!gearRpm || exitGearDelta === undefined || Math.abs(exitGearDelta) < comparison.config.thresholds.gearDelta) {
+  if (!gearRpm || exitGearDelta === undefined || Math.abs(exitGearDelta) < comparison.config.rules.triggers.gearDelta) {
     return undefined;
   }
 
   const exitSpeedLoss =
-    speed !== undefined && speed.exitSpeedDeltaKmh < -comparison.config.thresholds.exitSpeedDeltaKmh;
+    speed !== undefined && speed.exitSpeedDeltaKmh < -comparison.config.rules.triggers.exitSpeedDeltaKmh;
   const clearSpeedBenefit =
     speed !== undefined &&
-    (speed.exitSpeedDeltaKmh > comparison.config.thresholds.exitSpeedDeltaKmh ||
-      speed.averageSpeedDeltaKmh > comparison.config.thresholds.minSpeedDeltaKmh);
+    (speed.exitSpeedDeltaKmh > comparison.config.rules.triggers.exitSpeedDeltaKmh ||
+      speed.averageSpeedDeltaKmh > comparison.config.rules.triggers.minSpeedDeltaKmh);
   const delayedFullThrottle =
     throttle?.fullThrottleDeltaM !== undefined &&
-    throttle.fullThrottleDeltaM > comparison.config.thresholds.throttleTimingDeltaM;
+    throttle.fullThrottleDeltaM > comparison.config.rules.triggers.throttleTimingDeltaM;
   const rpmSupportsCost =
     gearRpm.exitRpmDelta !== undefined &&
-    ((exitGearDelta > 0 && gearRpm.exitRpmDelta < -comparison.config.thresholds.rpmDelta) ||
-      (exitGearDelta < 0 && gearRpm.exitRpmDelta > comparison.config.thresholds.rpmDelta));
+    ((exitGearDelta > 0 && gearRpm.exitRpmDelta < -comparison.config.rules.triggers.rpmDelta) ||
+      (exitGearDelta < 0 && gearRpm.exitRpmDelta > comparison.config.rules.triggers.rpmDelta));
 
   if (clearSpeedBenefit || (!exitSpeedLoss && !delayedFullThrottle && !rpmSupportsCost)) {
     return undefined;
@@ -45,8 +44,8 @@ export function wrongGearOnExit(
     practiceCue: "Review the shift point before exit and aim for a gear that lets the throttle build without bogging or running out of revs.",
     category: "gearing",
     severity:
-      (speed?.exitSpeedDeltaKmh ?? 0) < GEARING_SEVERITY.highExitSpeedLossKmh ||
-      Math.abs(gearRpm.exitRpmDelta ?? 0) > GEARING_SEVERITY.rpmDelta
+      (speed?.exitSpeedDeltaKmh ?? 0) < comparison.config.rules.severity.gearing.highExitSpeedLossKmh ||
+      Math.abs(gearRpm.exitRpmDelta ?? 0) > comparison.config.rules.severity.gearing.rpmDelta
         ? "high"
         : "medium",
     confidence: 0.63,
@@ -72,13 +71,13 @@ export function overRevvingWithoutSpeedGain(
   const gearRpm = comparison.metrics.gearRpm;
   const speed = comparison.metrics.speed;
   const rpmDelta = largestPositiveRpmDelta(gearRpm?.averageRpmDelta, gearRpm?.exitRpmDelta);
-  if (!gearRpm || !speed || rpmDelta === undefined || rpmDelta <= comparison.config.thresholds.rpmDelta) {
+  if (!gearRpm || !speed || rpmDelta === undefined || rpmDelta <= comparison.config.rules.triggers.rpmDelta) {
     return undefined;
   }
 
   const hasSpeedBenefit =
-    speed.averageSpeedDeltaKmh > comparison.config.thresholds.minSpeedDeltaKmh ||
-    speed.exitSpeedDeltaKmh > comparison.config.thresholds.exitSpeedDeltaKmh;
+    speed.averageSpeedDeltaKmh > comparison.config.rules.triggers.minSpeedDeltaKmh ||
+    speed.exitSpeedDeltaKmh > comparison.config.rules.triggers.exitSpeedDeltaKmh;
   if (hasSpeedBenefit) {
     return undefined;
   }
@@ -91,8 +90,8 @@ export function overRevvingWithoutSpeedGain(
     practiceCue: "Try the reference shift timing and check whether the car builds exit speed with less time near the top of the rev range.",
     category: "gearing",
     severity:
-      rpmDelta > GEARING_SEVERITY.rpmDelta ||
-      speed.exitSpeedDeltaKmh < GEARING_SEVERITY.highExitSpeedLossKmh
+      rpmDelta > comparison.config.rules.severity.gearing.rpmDelta ||
+      speed.exitSpeedDeltaKmh < comparison.config.rules.severity.gearing.highExitSpeedLossKmh
         ? "high"
         : "medium",
     confidence: 0.6,
@@ -116,15 +115,15 @@ export function shortShiftCostingExit(
   }
 
   const higherGear =
-    (gearRpm.exitGearDelta ?? 0) >= comparison.config.thresholds.gearDelta ||
-    (gearRpm.averageGearDelta ?? 0) >= comparison.config.thresholds.gearDelta;
+    (gearRpm.exitGearDelta ?? 0) >= comparison.config.rules.triggers.gearDelta ||
+    (gearRpm.averageGearDelta ?? 0) >= comparison.config.rules.triggers.gearDelta;
   const lowerRpm =
-    (gearRpm.exitRpmDelta ?? 0) <= -comparison.config.thresholds.rpmDelta ||
-    (gearRpm.averageRpmDelta ?? 0) <= -comparison.config.thresholds.rpmDelta;
+    (gearRpm.exitRpmDelta ?? 0) <= -comparison.config.rules.triggers.rpmDelta ||
+    (gearRpm.averageRpmDelta ?? 0) <= -comparison.config.rules.triggers.rpmDelta;
   const weakerExitAcceleration =
-    (speedShape?.minSpeedToExitGainDeltaKmh ?? 0) < -comparison.config.thresholds.exitAccelerationDeltaKmh ||
-    (speedShape?.apexToExitGainDeltaKmh ?? 0) < -comparison.config.thresholds.exitAccelerationDeltaKmh;
-  const worseExitSpeed = speed.exitSpeedDeltaKmh < -comparison.config.thresholds.exitSpeedDeltaKmh;
+    (speedShape?.minSpeedToExitGainDeltaKmh ?? 0) < -comparison.config.rules.triggers.exitAccelerationDeltaKmh ||
+    (speedShape?.apexToExitGainDeltaKmh ?? 0) < -comparison.config.rules.triggers.exitAccelerationDeltaKmh;
+  const worseExitSpeed = speed.exitSpeedDeltaKmh < -comparison.config.rules.triggers.exitSpeedDeltaKmh;
 
   if ((!higherGear && !lowerRpm) || (!worseExitSpeed && !weakerExitAcceleration)) {
     return undefined;
@@ -140,8 +139,8 @@ export function shortShiftCostingExit(
     practiceCue: "Hold the lower gear a little longer if it lets the engine stay in the pull without upsetting the car.",
     category: "gearing",
     severity:
-      speed.exitSpeedDeltaKmh < GEARING_SEVERITY.highExitSpeedLossKmh ||
-      (speedShape?.minSpeedToExitGainDeltaKmh ?? 0) < GEARING_SEVERITY.exitAccelerationLossKmh
+      speed.exitSpeedDeltaKmh < comparison.config.rules.severity.gearing.highExitSpeedLossKmh ||
+      (speedShape?.minSpeedToExitGainDeltaKmh ?? 0) < comparison.config.rules.severity.gearing.exitAccelerationLossKmh
         ? "high"
         : "medium",
     confidence: 0.62,

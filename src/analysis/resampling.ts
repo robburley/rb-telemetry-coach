@@ -26,11 +26,12 @@ export function resampleLapTelemetry(
   distancePct: Float64Array,
   options: ResampleTelemetryOptions = {},
 ): ResampledTelemetry {
+  const config = options.config ?? defaultAnalysisConfig;
   const slice = {
     startDistancePct: distancePct[0] ?? 0,
     endDistancePct: distancePct[distancePct.length - 1] ?? 0,
   };
-  const sliced = sliceLapTelemetry(telemetry, slice).telemetry;
+  const sliced = sliceLapTelemetry(telemetry, slice, config.slicing).telemetry;
   const sourceDistance = sliced.channels.distancePct;
   const distanceM = options.lapLengthM
     ? Float64Array.from(distancePct, (distance) => distance * options.lapLengthM!)
@@ -66,17 +67,17 @@ export function buildCommonDistanceAxis(
   const config = options.config ?? defaultAnalysisConfig;
   const lengthPct = slice.endDistancePct - slice.startDistancePct;
   const stepPct = options.lapLengthM
-    ? config.resampleStepM / options.lapLengthM
-    : lengthPct / Math.max(1, config.maxResampledPoints - 1);
+    ? config.resampling.resampleStepM / options.lapLengthM
+    : lengthPct / Math.max(1, config.resampling.maxResampledPoints - 1);
   const pointCount = Math.floor(lengthPct / stepPct + 1e-9) + 1;
 
   if (pointCount < 2) {
     throw new Error("Cannot resample telemetry: slice is too small");
   }
 
-  if (pointCount > config.maxResampledPoints) {
+  if (pointCount > config.resampling.maxResampledPoints) {
     throw new Error(
-      `Cannot resample telemetry: ${pointCount} points exceeds maxResampledPoints ${config.maxResampledPoints}`,
+      `Cannot resample telemetry: ${pointCount} points exceeds maxResampledPoints ${config.resampling.maxResampledPoints}`,
     );
   }
 

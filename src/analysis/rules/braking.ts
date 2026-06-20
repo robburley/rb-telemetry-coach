@@ -7,7 +7,6 @@ import {
   formatSpeedDelta,
   makeEvidence,
 } from "../evidence";
-import { BRAKING_SEVERITY } from "./constants/braking";
 import type { RuleDefinition } from "./index";
 
 export const brakingRules: RuleDefinition[] = [
@@ -28,7 +27,7 @@ export function brakingTooEarly(
 ): ReturnType<RuleDefinition> {
   const braking = comparison.metrics.braking;
   const delta = braking?.brakeStartDeltaM;
-  if (delta === undefined || delta >= -comparison.config.thresholds.brakeTimingDeltaM) {
+  if (delta === undefined || delta >= -comparison.config.rules.triggers.brakeTimingDeltaM) {
     return undefined;
   }
 
@@ -39,7 +38,7 @@ export function brakingTooEarly(
     why: "You start braking before the reference, which can spend speed before the corner is asking for it.",
     practiceCue: "Move the first brake marker a small step deeper and keep the initial hit smooth.",
     category: "braking",
-    severity: Math.abs(delta) > BRAKING_SEVERITY.brakeTimingDeltaM ? "high" : "medium",
+    severity: Math.abs(delta) > comparison.config.rules.severity.braking.brakeTimingDeltaM ? "high" : "medium",
     confidence: 0.82,
     evidence: [makeEvidence("Brake start", formatDistanceDelta(delta), "delta", "primary", { deltaM: delta })],
   };
@@ -50,7 +49,7 @@ export function brakingTooLate(
 ): ReturnType<RuleDefinition> {
   const braking = comparison.metrics.braking;
   const delta = braking?.brakeStartDeltaM;
-  if (delta === undefined || delta <= comparison.config.thresholds.brakeTimingDeltaM) {
+  if (delta === undefined || delta <= comparison.config.rules.triggers.brakeTimingDeltaM) {
     return undefined;
   }
 
@@ -61,7 +60,7 @@ export function brakingTooLate(
     why: "Your brake point is later than the reference, which can force the rest of the entry to happen in a rush.",
     practiceCue: "Try braking a car-length earlier, then release pressure rather than adding more steering.",
     category: "braking",
-    severity: delta > BRAKING_SEVERITY.brakeTimingDeltaM ? "high" : "medium",
+    severity: delta > comparison.config.rules.severity.braking.brakeTimingDeltaM ? "high" : "medium",
     confidence: 0.8,
     evidence: [makeEvidence("Brake start", formatDistanceDelta(delta), "delta", "primary", { deltaM: delta })],
   };
@@ -72,7 +71,7 @@ export function holdingBrakeTooLong(
 ): ReturnType<RuleDefinition> {
   const braking = comparison.metrics.braking;
   const delta = braking?.brakeDurationDeltaM;
-  if (delta === undefined || delta <= comparison.config.thresholds.brakeTimingDeltaM) {
+  if (delta === undefined || delta <= comparison.config.rules.triggers.brakeTimingDeltaM) {
     return undefined;
   }
 
@@ -83,7 +82,7 @@ export function holdingBrakeTooLong(
     why: "Your brake phase covers more distance than the reference, so the car stays checked up for longer.",
     practiceCue: "Aim for the same initial brake, then bleed pressure earlier as the car rotates.",
     category: "braking",
-    severity: delta > BRAKING_SEVERITY.brakeDurationDeltaM ? "high" : "medium",
+    severity: delta > comparison.config.rules.severity.braking.brakeDurationDeltaM ? "high" : "medium",
     confidence: 0.78,
     evidence: [makeEvidence("Brake duration", formatDistanceDelta(delta), "delta", "primary", { deltaM: delta })],
   };
@@ -93,7 +92,7 @@ export function overSlowingEntry(
   comparison: Parameters<RuleDefinition>[0],
 ): ReturnType<RuleDefinition> {
   const speed = comparison.metrics.speed;
-  if (!speed || speed.minSpeedDeltaKmh >= -comparison.config.thresholds.minSpeedDeltaKmh) {
+  if (!speed || speed.minSpeedDeltaKmh >= -comparison.config.rules.triggers.minSpeedDeltaKmh) {
     return undefined;
   }
 
@@ -104,7 +103,7 @@ export function overSlowingEntry(
     why: "Your slowest point is below the reference, so the car has more speed to rebuild on exit.",
     practiceCue: "Release the brake into the apex and let the car roll before asking for exit throttle.",
     category: "braking",
-    severity: speed.minSpeedDeltaKmh < BRAKING_SEVERITY.highSpeedLossKmh ? "high" : "medium",
+    severity: speed.minSpeedDeltaKmh < comparison.config.rules.severity.braking.highSpeedLossKmh ? "high" : "medium",
     confidence: 0.86,
     evidence: [
       makeEvidence("Minimum speed", formatSpeedDelta(speed.minSpeedDeltaKmh), "delta", "primary", { deltaKmh: speed.minSpeedDeltaKmh }),
@@ -121,9 +120,9 @@ export function insufficientTrailBraking(
   const speed = comparison.metrics.speed;
   if (
     releaseDelta === undefined ||
-    releaseDelta >= -comparison.config.thresholds.brakeTimingDeltaM ||
+    releaseDelta >= -comparison.config.rules.triggers.brakeTimingDeltaM ||
     !speed ||
-    speed.minSpeedDeltaKmh <= -comparison.config.thresholds.minSpeedDeltaKmh
+    speed.minSpeedDeltaKmh <= -comparison.config.rules.triggers.minSpeedDeltaKmh
   ) {
     return undefined;
   }
@@ -150,12 +149,12 @@ export function softInitialBrake(
   const shape = comparison.metrics.brakePressureShape;
   const speed = comparison.metrics.speed;
   const rampDelta = shape?.startToPeakDistanceDeltaM;
-  const longerBraking = (comparison.metrics.braking?.brakeDurationDeltaM ?? 0) > comparison.config.thresholds.brakeTimingDeltaM;
-  const speedLoss = speed ? speed.minSpeedDeltaKmh < -comparison.config.thresholds.minSpeedDeltaKmh : false;
+  const longerBraking = (comparison.metrics.braking?.brakeDurationDeltaM ?? 0) > comparison.config.rules.triggers.brakeTimingDeltaM;
+  const speedLoss = speed ? speed.minSpeedDeltaKmh < -comparison.config.rules.triggers.minSpeedDeltaKmh : false;
   if (
     !shape ||
     rampDelta === undefined ||
-    rampDelta <= comparison.config.thresholds.brakeRampDeltaM ||
+    rampDelta <= comparison.config.rules.triggers.brakeRampDeltaM ||
     (!longerBraking && !speedLoss)
   ) {
     return undefined;
@@ -169,8 +168,8 @@ export function softInitialBrake(
     practiceCue: "Make the first brake squeeze firmer, then release cleanly instead of extending the whole brake phase.",
     category: "braking",
     severity:
-      rampDelta > BRAKING_SEVERITY.brakeRampDeltaM ||
-      (speed?.minSpeedDeltaKmh ?? 0) < BRAKING_SEVERITY.highSpeedLossKmh
+      rampDelta > comparison.config.rules.severity.braking.brakeRampDeltaM ||
+      (speed?.minSpeedDeltaKmh ?? 0) < comparison.config.rules.severity.braking.highSpeedLossKmh
         ? "high"
         : "medium",
     confidence: 0.68,
@@ -191,14 +190,14 @@ export function spikingBrakePressure(
   const steering = comparison.metrics.steering;
   const rampDelta = shape?.startToPeakDistanceDeltaM;
   const unstableOutcome =
-    (speed?.minSpeedDeltaKmh ?? 0) < -comparison.config.thresholds.minSpeedDeltaKmh ||
-    (steering?.peakSteeringDeltaDeg ?? 0) > comparison.config.thresholds.steeringPeakDeltaDeg ||
-    (steering?.correctionCountDelta ?? 0) >= comparison.config.thresholds.correctionCountDelta;
+    (speed?.minSpeedDeltaKmh ?? 0) < -comparison.config.rules.triggers.minSpeedDeltaKmh ||
+    (steering?.peakSteeringDeltaDeg ?? 0) > comparison.config.rules.triggers.steeringPeakDeltaDeg ||
+    (steering?.correctionCountDelta ?? 0) >= comparison.config.rules.triggers.correctionCountDelta;
   if (
     !shape ||
     rampDelta === undefined ||
-    rampDelta >= -comparison.config.thresholds.brakeRampDeltaM ||
-    shape.targetPeakBrake < shape.referencePeakBrake - comparison.config.thresholds.pedalDepthDelta ||
+    rampDelta >= -comparison.config.rules.triggers.brakeRampDeltaM ||
+    shape.targetPeakBrake < shape.referencePeakBrake - comparison.config.rules.triggers.pedalDepthDelta ||
     !unstableOutcome
   ) {
     return undefined;
@@ -212,8 +211,8 @@ export function spikingBrakePressure(
     practiceCue: "Keep the initial hit firm but progressive enough that the platform stays settled as steering begins.",
     category: "braking",
     severity:
-      Math.abs(rampDelta) > BRAKING_SEVERITY.brakeRampDeltaM ||
-      (steering?.correctionCountDelta ?? 0) > BRAKING_SEVERITY.extraCorrectionCountDelta
+      Math.abs(rampDelta) > comparison.config.rules.severity.braking.brakeRampDeltaM ||
+      (steering?.correctionCountDelta ?? 0) > comparison.config.rules.severity.braking.extraCorrectionCountDelta
         ? "high"
         : "medium",
     confidence: 0.64,
@@ -233,12 +232,12 @@ export function dumpingBrakeRelease(
   const steering = comparison.metrics.steering;
   const releaseDelta = shape?.releaseDistanceDeltaM;
   const rotationOutcome =
-    (steering?.peakSteeringDeltaDeg ?? 0) > comparison.config.thresholds.steeringPeakDeltaDeg ||
-    (steering?.correctionCountDelta ?? 0) >= comparison.config.thresholds.correctionCountDelta;
+    (steering?.peakSteeringDeltaDeg ?? 0) > comparison.config.rules.triggers.steeringPeakDeltaDeg ||
+    (steering?.correctionCountDelta ?? 0) >= comparison.config.rules.triggers.correctionCountDelta;
   if (
     !shape ||
     releaseDelta === undefined ||
-    releaseDelta >= -comparison.config.thresholds.brakeRampDeltaM ||
+    releaseDelta >= -comparison.config.rules.triggers.brakeRampDeltaM ||
     !rotationOutcome
   ) {
     return undefined;
@@ -251,7 +250,7 @@ export function dumpingBrakeRelease(
     why: "Your brake release is shorter than the reference, and the car needs extra steering or corrections afterward.",
     practiceCue: "Bleed the last part of brake pressure out with the steering build instead of dropping it all at once.",
     category: "braking",
-    severity: Math.abs(releaseDelta) > BRAKING_SEVERITY.brakeRampDeltaM ? "high" : "medium",
+    severity: Math.abs(releaseDelta) > comparison.config.rules.severity.braking.brakeRampDeltaM ? "high" : "medium",
     confidence: 0.63,
     evidence: [
       makeEvidence("Release distance", formatDistanceDelta(releaseDelta), "delta", "primary", { releaseDeltaM: releaseDelta }),
@@ -270,13 +269,13 @@ export function draggingBrake(
   const releaseDelta = comparison.metrics.braking?.brakeReleaseDeltaM;
   const delayedThrottle =
     throttle?.firstThrottleDeltaM !== undefined &&
-    throttle.firstThrottleDeltaM > comparison.config.thresholds.throttleTimingDeltaM;
+    throttle.firstThrottleDeltaM > comparison.config.rules.triggers.throttleTimingDeltaM;
   if (
     !shape ||
-    shape.brakeAroundMinSpeedDelta <= comparison.config.thresholds.pedalDepthDelta ||
-    shape.brakeAreaDelta <= comparison.config.thresholds.brakePressureAreaDelta ||
+    shape.brakeAroundMinSpeedDelta <= comparison.config.rules.triggers.pedalDepthDelta ||
+    shape.brakeAreaDelta <= comparison.config.rules.triggers.brakePressureAreaDelta ||
     !delayedThrottle &&
-      (releaseDelta === undefined || releaseDelta <= comparison.config.thresholds.brakeTimingDeltaM)
+      (releaseDelta === undefined || releaseDelta <= comparison.config.rules.triggers.brakeTimingDeltaM)
   ) {
     return undefined;
   }
@@ -288,7 +287,7 @@ export function draggingBrake(
     why: "You carry more brake pressure around the slowest point than the reference, which can hold the car before throttle pickup.",
     practiceCue: "Aim to finish the heavy braking sooner, then keep only the pressure needed for rotation.",
     category: "braking",
-    severity: shape.brakeAroundMinSpeedDelta > BRAKING_SEVERITY.brakeAroundMinSpeedDelta ? "high" : "medium",
+    severity: shape.brakeAroundMinSpeedDelta > comparison.config.rules.severity.braking.brakeAroundMinSpeedDelta ? "high" : "medium",
     confidence: 0.66,
     evidence: [
       makeEvidence("Brake near apex", formatPedalPointDelta(shape.brakeAroundMinSpeedDelta), "delta", "primary", {
@@ -312,11 +311,11 @@ export function underBrakingPressure(
   const braking = comparison.metrics.braking;
   const pressureLoss =
     shape !== undefined &&
-    (shape.targetPeakBrake - shape.referencePeakBrake < -comparison.config.thresholds.pedalDepthDelta ||
-      shape.brakeAreaDelta < -comparison.config.thresholds.brakePressureAreaDelta);
+    (shape.targetPeakBrake - shape.referencePeakBrake < -comparison.config.rules.triggers.pedalDepthDelta ||
+      shape.brakeAreaDelta < -comparison.config.rules.triggers.brakePressureAreaDelta);
   const poorOutcome =
-    (braking?.brakeDurationDeltaM ?? 0) > comparison.config.thresholds.brakeTimingDeltaM ||
-    (speed?.minSpeedDeltaKmh ?? 0) < -comparison.config.thresholds.minSpeedDeltaKmh;
+    (braking?.brakeDurationDeltaM ?? 0) > comparison.config.rules.triggers.brakeTimingDeltaM ||
+    (speed?.minSpeedDeltaKmh ?? 0) < -comparison.config.rules.triggers.minSpeedDeltaKmh;
   if (!shape || !pressureLoss || !poorOutcome) {
     return undefined;
   }
@@ -329,8 +328,8 @@ export function underBrakingPressure(
     practiceCue: "Add enough initial pressure to slow the car in the right place, then release rather than dragging the phase out.",
     category: "braking",
     severity:
-      shape.brakeAreaDelta < BRAKING_SEVERITY.brakeAreaLossDelta ||
-      (speed?.minSpeedDeltaKmh ?? 0) < BRAKING_SEVERITY.highSpeedLossKmh
+      shape.brakeAreaDelta < comparison.config.rules.severity.braking.brakeAreaLossDelta ||
+      (speed?.minSpeedDeltaKmh ?? 0) < comparison.config.rules.severity.braking.highSpeedLossKmh
         ? "high"
         : "medium",
     confidence: 0.65,

@@ -9,7 +9,7 @@ export function generateAnalysisReport(
   context: ComparisonContext,
   config: AnalysisConfig = defaultAnalysisConfig,
 ): AnalysisReport {
-  const sliceValidation = validateDistanceSlice(context.slice);
+  const sliceValidation = validateDistanceSlice(context.slice, config.slicing);
   if (sliceValidation.status !== "valid") {
     return {
       status: sliceValidation.status,

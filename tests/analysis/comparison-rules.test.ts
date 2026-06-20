@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   compareTelemetry,
+  createAnalysisConfig,
   defaultAnalysisConfig,
   distanceBetweenPct,
   distanceWindowSpeedGainKmh,
@@ -34,16 +35,17 @@ import {
 const analysisId = "01KVBECPC8BM15DJ7X80X1RGCT";
 const referenceLapId = "01KVBPW12Z5WJY1W33G47N95KW";
 const targetLapId = "01KVBPNG1EVNB3D9310P6X2J1K";
-const unsmoothedConfig: AnalysisConfig = {
-  ...defaultAnalysisConfig,
-  resampleStepM: 10,
-  smoothingWindowM: {
+const unsmoothedConfig: AnalysisConfig = createAnalysisConfig({
+  resampling: {
+    resampleStepM: 10,
+  },
+  smoothing: {
     speed: 0,
     brake: 0,
     throttle: 0,
     steering: 0,
   },
-};
+});
 
 describe("Phase 1 baseline telemetry comparison and reports", () => {
   it("formats evidence with metres, lap percentage, speed, and pedal units", () => {
@@ -220,6 +222,41 @@ describe("Phase 1 baseline telemetry comparison and reports", () => {
     expect(comparison.metrics.throttleLiftQuality?.targetAverage).toBeGreaterThan(0);
     expect(comparison.metrics.brakePressureShape?.targetPeakBrake).toBe(1);
     expect(comparison.metrics.brakeToThrottleTransition?.targetCoastGapM).toBeDefined();
+  });
+
+  it("threads event config overrides through comparison-derived metrics", () => {
+    const context = replaceChannels(
+      makeContext(),
+      {
+        brake: [0, 0.04, 0.04, 0, 0, 0, 0],
+        throttle: [0, 0, 0.04, 0.11, 0.9, 0.82, 0.9],
+        steeringRad: [0, 0.1, 0.2, 0.1, 0, 0, 0],
+      },
+      {
+        brake: [0, 0.04, 0.04, 0, 0, 0, 0],
+        throttle: [0, 0, 0.04, 0.11, 0.9, 0.82, 0.9],
+        steeringRad: [0, 0.2, 0.4, 0.2, 0, 0, 0],
+      },
+    );
+    const tunedConfig = createAnalysisConfig({
+      resampling: unsmoothedConfig.resampling,
+      smoothing: unsmoothedConfig.smoothing,
+      events: {
+        brakeActiveThreshold: 0.03,
+        throttleActiveThreshold: 0.03,
+        throttleLiftDrop: 0.07,
+      },
+    });
+
+    const defaultComparison = compareTelemetry(context, unsmoothedConfig);
+    const tunedComparison = compareTelemetry(context, tunedConfig);
+
+    expect(defaultComparison.metrics.throttle?.targetLiftCount).toBe(0);
+    expect(defaultComparison.metrics.pedalCoordination).toBeUndefined();
+    expect(tunedComparison.metrics.throttle?.targetLiftCount).toBe(1);
+    expect(tunedComparison.metrics.throttleLiftQuality?.targetLiftCount).toBe(1);
+    expect(tunedComparison.metrics.pedalCoordination?.targetSteeringWhileBraking).toBeDefined();
+    expect(tunedComparison.metrics.pedalCoordination?.targetThrottleRiseWhileBraking).toBeDefined();
   });
 
   it("keeps speed metrics while degrading missing brake, throttle, steering, gear/RPM, and path channels", () => {
@@ -2053,7 +2090,9 @@ describe("Phase 6 transition, line, and rotation rules", () => {
     );
     const finding = findingsFor(comparison).find((candidate) => candidate.id === "exit-acceleration-deficit");
 
-    expect(Math.abs(comparison.metrics.speed?.minSpeedDeltaKmh ?? 99)).toBeLessThan(defaultAnalysisConfig.thresholds.minSpeedDeltaKmh);
+    expect(Math.abs(comparison.metrics.speed?.minSpeedDeltaKmh ?? 99)).toBeLessThan(
+      defaultAnalysisConfig.rules.triggers.minSpeedDeltaKmh,
+    );
     expect(finding).toEqual(
       expect.objectContaining({
         category: "throttle",
@@ -2193,7 +2232,7 @@ describe("Phase 1 deterministic rules", () => {
   }> = [
     { id: "braking-too-early", category: "braking", severity: "high", confidence: 0.82, primaryEvidenceLabel: "Brake start", primaryRawKey: "deltaM", mutate: (context: ComparisonContext) => replaceBrakes(context, [0, 0, 0, 1, 0.5, 0, 0], [0, 1, 0.8, 0.1, 0, 0, 0]) },
     { id: "braking-too-late", category: "braking", severity: "high", confidence: 0.8, primaryEvidenceLabel: "Brake start", primaryRawKey: "deltaM", mutate: (context: ComparisonContext) => replaceBrakes(context, [0, 1, 0.5, 0, 0, 0, 0], [0, 0, 0, 1, 0.4, 0, 0]) },
-    { id: "holding-brake-too-long", category: "braking", severity: "medium", confidence: 0.78, primaryEvidenceLabel: "Brake duration", primaryRawKey: "deltaM", mutate: (context: ComparisonContext) => replaceBrakes(context, [0, 1, 0, 0, 0, 0, 0], [0, 1, 0.8, 0.4, 0, 0, 0]) },
+    { id: "holding-brake-too-long", category: "braking", severity: "high", confidence: 0.78, primaryEvidenceLabel: "Brake duration", primaryRawKey: "deltaM", mutate: (context: ComparisonContext) => replaceBrakes(context, [0, 1, 0, 0, 0, 0, 0], [0, 1, 0.8, 0.4, 0, 0, 0]) },
     { id: "over-slowing-entry", category: "braking", severity: "high", confidence: 0.86, primaryEvidenceLabel: "Minimum speed", primaryRawKey: "deltaKmh", mutate: (context: ComparisonContext) => replaceSpeed(context, [20, 20, 19, 20, 21, 22, 23], [20, 18, 17, 19, 21, 22, 23]) },
     { id: "insufficient-trail-braking", category: "braking", severity: "medium", confidence: 0.68, primaryEvidenceLabel: "Brake release", primaryRawKey: "deltaM", mutate: (context: ComparisonContext) =>
       replaceBrakesAndSpeed(context, [0, 1, 0.9, 0.4, 0, 0, 0], [0, 1, 0.1, 0, 0, 0, 0], [20, 19, 18, 19, 20, 21, 22], [20, 19, 18.5, 19.5, 20, 21, 22]) },
@@ -2237,6 +2276,42 @@ describe("Phase 1 deterministic rules", () => {
         raw: expect.objectContaining({ [primaryRawKey]: expect.any(Number) }),
       }),
     );
+  });
+
+  it("lets braking severity overrides change high-vs-medium without silencing the trigger", () => {
+    const context = replaceBrakes(makeContext(), [0, 1, 0.5, 0, 0, 0, 0], [0, 0, 0, 1, 0.4, 0, 0]);
+    const tunedConfig = createAnalysisConfig({
+      resampling: unsmoothedConfig.resampling,
+      smoothing: unsmoothedConfig.smoothing,
+      rules: {
+        severity: {
+          braking: {
+            brakeTimingDeltaM: 100,
+          },
+        },
+      },
+    });
+
+    expect(findingById(compareTelemetry(context, unsmoothedConfig), "braking-too-late")?.severity).toBe("high");
+    expect(findingById(compareTelemetry(context, tunedConfig), "braking-too-late")?.severity).toBe("medium");
+  });
+
+  it("lets throttle severity overrides change high-vs-medium without silencing the trigger", () => {
+    const context = replaceThrottle(makeContext(), [0, 0.2, 0.6, 1, 1, 1, 1], [0, 0, 0, 0.2, 0.6, 1, 1]);
+    const tunedConfig = createAnalysisConfig({
+      resampling: unsmoothedConfig.resampling,
+      smoothing: unsmoothedConfig.smoothing,
+      rules: {
+        severity: {
+          throttle: {
+            throttleTimingDeltaM: 100,
+          },
+        },
+      },
+    });
+
+    expect(findingById(compareTelemetry(context, unsmoothedConfig), "delayed-throttle-pickup")?.severity).toBe("high");
+    expect(findingById(compareTelemetry(context, tunedConfig), "delayed-throttle-pickup")?.severity).toBe("medium");
   });
 
   it("sorts findings stably and adds cause/effect links", () => {
@@ -2376,6 +2451,10 @@ function replaceBrakesAndSteering(
 
 function findingsFor(comparison: ReturnType<typeof compareTelemetry>): CoachingFinding[] {
   return runDeterministicRules(comparison).flatMap((result) => (result.finding ? [result.finding] : []));
+}
+
+function findingById(comparison: ReturnType<typeof compareTelemetry>, id: string): CoachingFinding | undefined {
+  return findingsFor(comparison).find((finding) => finding.id === id);
 }
 
 function replaceChannels(

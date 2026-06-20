@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  createAnalysisConfig,
   defaultAnalysisConfig,
   detectDrivingEvents,
   Garage61ExampleDataProvider,
@@ -49,11 +50,12 @@ describe("Phase 6 telemetry processing", () => {
       makeSlice(0.1, 0.12),
       {
         lapLengthM: 1000,
-        config: {
-          ...defaultAnalysisConfig,
-          resampleStepM: 10,
-          maxResampledPoints: 10,
-        },
+        config: createAnalysisConfig({
+          resampling: {
+            resampleStepM: 10,
+            maxResampledPoints: 10,
+          },
+        }),
       },
     );
 
@@ -74,11 +76,12 @@ describe("Phase 6 telemetry processing", () => {
     expect(() =>
       resampleTelemetryPair(telemetry, telemetry, makeSlice(0.1, 0.2), {
         lapLengthM: 1000,
-        config: {
-          ...defaultAnalysisConfig,
-          resampleStepM: 1,
-          maxResampledPoints: 10,
-        },
+        config: createAnalysisConfig({
+          resampling: {
+            resampleStepM: 1,
+            maxResampledPoints: 10,
+          },
+        }),
       }),
     ).toThrow("exceeds maxResampledPoints");
   });
@@ -94,11 +97,12 @@ describe("Phase 6 telemetry processing", () => {
       makeSlice(0.1, 0.105),
       {
         lapLengthM: 1000,
-        config: {
-          ...defaultAnalysisConfig,
-          resampleStepM: 1,
-          maxResampledPoints: 10,
-        },
+        config: createAnalysisConfig({
+          resampling: {
+            resampleStepM: 1,
+            maxResampledPoints: 10,
+          },
+        }),
       },
     );
 
@@ -117,13 +121,14 @@ describe("Phase 6 telemetry processing", () => {
       brake: [0, 1, 0],
     });
 
-    const smoothed = smoothResampledTelemetry(telemetry, {
-      ...defaultAnalysisConfig,
-      smoothingWindowM: {
-        ...defaultAnalysisConfig.smoothingWindowM,
-        brake: 2,
-      },
-    });
+    const smoothed = smoothResampledTelemetry(
+      telemetry,
+      createAnalysisConfig({
+        smoothing: {
+          brake: 2,
+        },
+      }),
+    );
 
     expect(Array.from(smoothed.channels.brake ?? [])).toEqual([
       expect.closeTo(0.5),
@@ -152,12 +157,66 @@ describe("Phase 6 telemetry processing", () => {
     expect(events.steeringUnwindDistancePct).toBe(0.14);
   });
 
+  it("uses event config overrides for event detection boundaries", () => {
+    const telemetry = makeResampledTelemetry("lap-a", [0.1, 0.11, 0.12, 0.13], {
+      brake: [0, 0.04, 0.8, 0.04],
+      throttle: [0, 0.04, 0.9, 0.82],
+      steeringRad: [0, 0.01, 0, 0.01],
+    });
+
+    const defaultEvents = detectDrivingEvents(telemetry);
+    const tunedEvents = detectDrivingEvents(
+      telemetry,
+      createAnalysisConfig({
+        events: {
+          brakeActiveThreshold: 0.03,
+          throttleActiveThreshold: 0.03,
+          fullThrottleThreshold: 0.85,
+          throttleLiftDrop: 0.07,
+          steeringNoiseRad: 0.005,
+          steeringUnwindRatio: 0.2,
+        },
+      }).events,
+    );
+
+    expect(defaultEvents.brakeStartDistancePct).toBe(0.12);
+    expect(defaultEvents.firstThrottleDistancePct).toBe(0.12);
+    expect(defaultEvents.fullThrottleDistancePct).toBeUndefined();
+    expect(defaultEvents.throttleLiftDistancePct).toEqual([]);
+    expect(defaultEvents.steeringCorrectionDistancesPct).toEqual([]);
+    expect(tunedEvents.brakeStartDistancePct).toBe(0.11);
+    expect(tunedEvents.firstThrottleDistancePct).toBe(0.11);
+    expect(tunedEvents.fullThrottleDistancePct).toBe(0.12);
+    expect(tunedEvents.throttleLiftDistancePct).toEqual([0.13]);
+    expect(tunedEvents.steeringCorrectionDistancesPct).toContain(0.12);
+  });
+
   it("skips events for missing channels without crashing", () => {
     const telemetry = makeResampledTelemetry("lap-a", [0.1, 0.11], {
       speedMs: [20, 21],
     });
 
     expect(detectDrivingEvents(telemetry)).toEqual({});
+  });
+
+  it("merges nested config overrides without dropping sibling values", () => {
+    const config = createAnalysisConfig({
+      resampling: {
+        maxResampledPoints: 20,
+      },
+      rules: {
+        triggers: {
+          minSpeedDeltaKmh: 4,
+        },
+      },
+    });
+
+    expect(config.resampling.resampleStepM).toBe(defaultAnalysisConfig.resampling.resampleStepM);
+    expect(config.resampling.maxResampledPoints).toBe(20);
+    expect(config.rules.triggers.minSpeedDeltaKmh).toBe(4);
+    expect(config.rules.triggers.exitSpeedDeltaKmh).toBe(
+      defaultAnalysisConfig.rules.triggers.exitSpeedDeltaKmh,
+    );
   });
 
   it("processes a fixture-backed Garage 61 slice through resampling, smoothing, and events", async () => {

@@ -1,26 +1,21 @@
 import type { DetectedDrivingEvents, ResampledTelemetry } from "../domain/types";
-
-const BRAKE_ACTIVE_THRESHOLD = 0.05;
-const THROTTLE_ACTIVE_THRESHOLD = 0.05;
-const FULL_THROTTLE_THRESHOLD = 0.95;
-const THROTTLE_LIFT_DROP = 0.12;
-const STEERING_NOISE_RAD = 0.015;
-const STEERING_UNWIND_RATIO = 0.4;
+import { defaultAnalysisConfig, type EventDetectionConfig } from "./config";
 
 export function detectDrivingEvents(
   telemetry: ResampledTelemetry,
+  config: EventDetectionConfig = defaultAnalysisConfig.events,
 ): DetectedDrivingEvents {
   const events: DetectedDrivingEvents = {};
   const { distancePct } = telemetry;
 
   const brake = telemetry.channels.brake;
   if (brake) {
-    const brakeStart = findFirstAtOrAbove(brake, BRAKE_ACTIVE_THRESHOLD);
+    const brakeStart = findFirstAtOrAbove(brake, config.brakeActiveThreshold);
     const peakBrake = findPeakIndex(brake);
     const brakeRelease =
       peakBrake === undefined
         ? undefined
-        : findFirstAtOrBelow(brake, BRAKE_ACTIVE_THRESHOLD, peakBrake);
+        : findFirstAtOrBelow(brake, config.brakeActiveThreshold, peakBrake);
 
     events.brakeStartDistancePct = distanceAt(distancePct, brakeStart);
     events.peakBrakeDistancePct = distanceAt(distancePct, peakBrake);
@@ -31,13 +26,13 @@ export function detectDrivingEvents(
   if (throttle) {
     events.firstThrottleDistancePct = distanceAt(
       distancePct,
-      findFirstAtOrAbove(throttle, THROTTLE_ACTIVE_THRESHOLD),
+      findFirstAtOrAbove(throttle, config.throttleActiveThreshold),
     );
     events.fullThrottleDistancePct = distanceAt(
       distancePct,
-      findFirstAtOrAbove(throttle, FULL_THROTTLE_THRESHOLD),
+      findFirstAtOrAbove(throttle, config.fullThrottleThreshold),
     );
-    events.throttleLiftDistancePct = findThrottleLifts(throttle).map(
+    events.throttleLiftDistancePct = findThrottleLifts(throttle, config).map(
       (index) => distancePct[index]!,
     );
   }
@@ -46,7 +41,7 @@ export function detectDrivingEvents(
   if (steering) {
     const peakSteering = findPeakAbsIndex(steering);
     events.steeringPeakDistancePct = distanceAt(distancePct, peakSteering);
-    events.steeringCorrectionDistancesPct = findSteeringCorrections(steering).map(
+    events.steeringCorrectionDistancesPct = findSteeringCorrections(steering, config).map(
       (index) => distancePct[index]!,
     );
     events.steeringUnwindDistancePct =
@@ -54,7 +49,12 @@ export function detectDrivingEvents(
         ? undefined
         : distanceAt(
             distancePct,
-            findSteeringUnwind(steering, peakSteering, Math.abs(steering[peakSteering]!)),
+            findSteeringUnwind(
+              steering,
+              peakSteering,
+              Math.abs(steering[peakSteering]!),
+              config,
+            ),
           );
   }
 
@@ -115,13 +115,16 @@ function findPeakAbsIndex(values: Float32Array): number | undefined {
   return peakIndex;
 }
 
-function findThrottleLifts(values: Float32Array): number[] {
+function findThrottleLifts(
+  values: Float32Array,
+  config: EventDetectionConfig,
+): number[] {
   const lifts: number[] = [];
   for (let index = 1; index < values.length; index += 1) {
     const drop = values[index - 1]! - values[index]!;
     if (
-      values[index - 1]! > THROTTLE_ACTIVE_THRESHOLD &&
-      drop >= THROTTLE_LIFT_DROP
+      values[index - 1]! > config.throttleActiveThreshold &&
+      drop >= config.throttleLiftDrop
     ) {
       lifts.push(index);
     }
@@ -129,13 +132,16 @@ function findThrottleLifts(values: Float32Array): number[] {
   return lifts;
 }
 
-function findSteeringCorrections(values: Float32Array): number[] {
+function findSteeringCorrections(
+  values: Float32Array,
+  config: EventDetectionConfig,
+): number[] {
   const corrections: number[] = [];
   let previousDirection = 0;
 
   for (let index = 1; index < values.length; index += 1) {
     const delta = values[index]! - values[index - 1]!;
-    const direction = Math.abs(delta) >= STEERING_NOISE_RAD ? Math.sign(delta) : 0;
+    const direction = Math.abs(delta) >= config.steeringNoiseRad ? Math.sign(delta) : 0;
     if (direction !== 0) {
       if (previousDirection !== 0 && direction !== previousDirection) {
         corrections.push(index);
@@ -151,8 +157,12 @@ function findSteeringUnwind(
   values: Float32Array,
   peakIndex: number,
   peakMagnitude: number,
+  config: EventDetectionConfig,
 ): number | undefined {
-  const threshold = Math.max(STEERING_NOISE_RAD, peakMagnitude * STEERING_UNWIND_RATIO);
+  const threshold = Math.max(
+    config.steeringNoiseRad,
+    peakMagnitude * config.steeringUnwindRatio,
+  );
   for (let index = peakIndex; index < values.length; index += 1) {
     if (Math.abs(values[index]!) <= threshold) {
       return index;
