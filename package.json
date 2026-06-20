@@ -9,6 +9,7 @@
     "build:extensions": "vite build --config vite.extension.config.ts",
     "build:extension:chrome": "vite build --config vite.extension.config.ts --mode chrome",
     "build:extension:firefox": "vite build --config vite.extension.config.ts --mode firefox",
+    "build:privacy-policy": "node scripts/build-privacy-policy-site.mjs",
     "preview": "vite preview --host 127.0.0.1",
     "smoke:ui": "node scripts/ui-smoke.mjs",
     "typecheck": "tsc --noEmit",

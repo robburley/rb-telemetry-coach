@@ -1,0 +1,79 @@
+name: Extension Artifacts
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+jobs:
+  build-extension-artifacts:
+    name: Build extension artifacts
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      - name: Build app and extensions
+        run: npm run build
+
+      - name: Read package version
+        id: package-version
+        shell: bash
+        run: |
+          VERSION="$(node -p "require('./package.json').version")"
+          echo "version=${VERSION}" >> "${GITHUB_OUTPUT}"
+
+      - name: Package Chrome and Firefox extensions
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          VERSION="${{ steps.package-version.outputs.version }}"
+          mkdir -p artifacts
+
+          (cd dist/extension/chrome && zip -r "../../../artifacts/rb-telemetry-coach-chrome-v${VERSION}.zip" .)
+          (cd dist/extension/firefox && zip -r "../../../artifacts/rb-telemetry-coach-firefox-v${VERSION}.zip" .)
+
+      - name: List packaged extension contents
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          for archive in artifacts/*.zip; do
+            echo "::group::${archive}"
+            unzip -l "${archive}"
+            echo "::endgroup::"
+          done
+
+      - name: Upload Chrome extension artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rb-telemetry-coach-chrome-v${{ steps.package-version.outputs.version }}
+          path: artifacts/rb-telemetry-coach-chrome-v*.zip
+          if-no-files-found: error
+
+      - name: Upload Firefox extension artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rb-telemetry-coach-firefox-v${{ steps.package-version.outputs.version }}
+          path: artifacts/rb-telemetry-coach-firefox-v*.zip
+          if-no-files-found: error
