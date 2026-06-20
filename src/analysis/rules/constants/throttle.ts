@@ -1,5 +1,5 @@
 export const THROTTLE_SEVERITY = {
-  throttleTimingDeltaM: 10,
+  throttleTimingDeltaM: 5,
   extraLiftCount: 1,
   highExitSpeedLossKmh: -6,
   coastingGapDeltaM: 22,
@@ -7,7 +7,7 @@ export const THROTTLE_SEVERITY = {
   extraCorrectionCountDelta: 1,
   liftDepth: 0.35,
   liftDepthDelta: 0.3,
-  liftDurationDeltaM: 20,
+  liftDurationDeltaM: 10,
   exitAccelerationLossKmh: -6,
 } as const;
 
