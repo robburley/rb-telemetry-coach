@@ -1092,8 +1092,8 @@ describe("Phase 3 throttle lift quality", () => {
             raw: expect.objectContaining({ durationDeltaM: expect.any(Number) }),
           }),
           expect.objectContaining({
-            label: "Your throttle pause",
-            raw: expect.objectContaining({ targetLongestLiftDurationM: expect.any(Number) }),
+            label: "Lift starts",
+            raw: expect.objectContaining({ targetDistancePct: expect.any(Number) }),
           }),
           expect.objectContaining({
             label: "Reference throttle pause",
