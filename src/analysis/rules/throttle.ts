@@ -512,7 +512,6 @@ export function longThrottleLift(
       makeEvidence("Pause vs reference", formatDurationDelta(durationDelta), "delta", "primary", {
         durationDeltaM: durationDelta,
       }),
-      makeEvidence("Your throttle pause", formatDistanceDuration(lift.targetLongestLiftDurationM), "absolute", "primary", {
       ...(lift.targetFirstLiftStartDistancePct === undefined
         ? []
         : [
@@ -520,9 +519,6 @@ export function longThrottleLift(
               targetDistancePct: lift.targetFirstLiftStartDistancePct,
             }),
           ]),
-      makeEvidence("Target lift duration", formatDistanceDuration(lift.targetLongestLiftDurationM), "absolute", "secondary", {
-        targetLongestLiftDurationM: lift.targetLongestLiftDurationM ?? 0,
-      }),
       makeEvidence("Reference throttle pause", formatDistanceDuration(lift.referenceLongestLiftDurationM), "comparison", "secondary", {
         referenceLongestLiftDurationM: lift.referenceLongestLiftDurationM ?? 0,
       }),
