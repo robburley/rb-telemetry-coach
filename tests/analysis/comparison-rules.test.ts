@@ -341,6 +341,94 @@ describe("Phase 1 baseline telemetry comparison and reports", () => {
     expect(ids).not.toContain("under-braking-pressure");
   });
 
+  it("uses unsmoothed brake anchors for event timing while preserving smoothed comparison channels", () => {
+    const comparison = compareTelemetry(
+      replaceBrakes(
+        makeContext(),
+        [0, 0, 1, 1, 1, 0, 0],
+        [0, 1, 1, 1, 0, 0, 0],
+      ),
+      createAnalysisConfig({
+        resampling: unsmoothedConfig.resampling,
+        smoothing: {
+          speed: 0,
+          brake: 40,
+          throttle: 0,
+          steering: 0,
+        },
+      }),
+    );
+
+    expect(comparison.referenceEvents.brakeStartDistancePct).toBeCloseTo(0.104);
+    expect(comparison.targetEvents.brakeStartDistancePct).toBeCloseTo(0.102);
+    expect(comparison.referenceEvents.brakeReleaseDistancePct).toBeCloseTo(0.11);
+    expect(comparison.targetEvents.brakeReleaseDistancePct).toBeCloseTo(0.108);
+    expect(comparison.metrics.braking).toEqual(
+      expect.objectContaining({
+        brakeStartDeltaM: expect.closeTo(-10),
+        brakeReleaseDeltaM: expect.closeTo(-10),
+      }),
+    );
+    expect(comparison.reference.channels.brake?.[0]).toBeGreaterThan(0);
+    expect(findingById(comparison, "braking-too-early")?.evidence).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          label: "Reference start",
+          raw: expect.objectContaining({ targetDistancePct: expect.closeTo(0.102) }),
+        }),
+      ]),
+    );
+  });
+
+  it("labels braking reference start and release evidence from reference events", () => {
+    const lateStart = compareTelemetry(
+      replaceBrakes(
+        makeContext(),
+        [0, 1, 1, 0, 0, 0, 0],
+        [0, 0, 0, 1, 1, 0, 0],
+      ),
+      unsmoothedConfig,
+    );
+    const longRelease = compareTelemetry(
+      replaceBrakes(
+        makeContext(),
+        [0, 1, 0, 0, 0, 0, 0],
+        [0, 1, 1, 1, 1, 0, 0],
+      ),
+      unsmoothedConfig,
+    );
+
+    expect(lateStart.referenceEvents.brakeStartDistancePct).toBeCloseTo(0.102);
+    expect(lateStart.targetEvents.brakeStartDistancePct).toBeCloseTo(0.106);
+    expect(findingById(lateStart, "braking-too-late")?.evidence).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          label: "Reference start",
+          value: "510 m",
+          raw: expect.objectContaining({
+            referenceDistancePct: expect.closeTo(0.102),
+            targetDistancePct: expect.closeTo(0.106),
+          }),
+        }),
+      ]),
+    );
+
+    expect(longRelease.referenceEvents.brakeReleaseDistancePct).toBeCloseTo(0.104);
+    expect(longRelease.targetEvents.brakeReleaseDistancePct).toBeCloseTo(0.11);
+    expect(findingById(longRelease, "holding-brake-too-long")?.evidence).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          label: "Reference release",
+          value: "520 m",
+          raw: expect.objectContaining({
+            referenceDistancePct: expect.closeTo(0.104),
+            targetDistancePct: expect.closeTo(0.11),
+          }),
+        }),
+      ]),
+    );
+  });
+
   it("keeps steering-derived rules optional when steering channels are missing", () => {
     const comparison = compareTelemetry(
       makeContext({
@@ -536,6 +624,28 @@ describe("Phase 2 derived metric foundations", () => {
     expect(Number.isFinite(comparison.metrics.lineUsage?.averageLateralOffsetM)).toBe(true);
   });
 
+  it("normalizes wrapped heading deltas around the apex and minimum speed", () => {
+    const comparison = compareTelemetry(
+      replaceChannels(
+        makeContext(),
+        {
+          speedMs: [24, 22, 20, 19, 20, 22, 24],
+          headingRad: [3.08, 3.09, 3.1, 3.11, 3.12, 3.13, 3.14],
+        },
+        {
+          speedMs: [24, 22, 20, 19, 20, 22, 24],
+          headingRad: [-3.1, -3.09, -3.08, -3.07, -3.06, -3.05, -3.04],
+        },
+      ),
+      unsmoothedConfig,
+    );
+
+    expect(comparison.metrics.headingRotation?.apexHeadingDeltaDeg).toBeCloseTo(5.91, 1);
+    expect(comparison.metrics.headingRotation?.minSpeedHeadingDeltaDeg).toBeCloseTo(5.91, 1);
+    expect(Math.abs(comparison.metrics.headingRotation?.apexHeadingDeltaDeg ?? 999)).toBeLessThan(10);
+    expect(findingById(comparison, "under-rotated-at-apex")).toBeUndefined();
+  });
+
   it("computes Phase 1 foundations for gearing, apex timing, speed gain, steering under brake, and throttle rise under brake", () => {
     const comparison = compareTelemetry(
       replaceChannels(
@@ -599,6 +709,29 @@ describe("Phase 2 derived metric foundations", () => {
     expect(runDeterministicRules(comparison)).toHaveLength(40);
   });
 
+  it("separates own-minimum speed loss from same-distance minimum speed comparisons", () => {
+    const comparison = compareTelemetry(
+      replaceSpeed(
+        makeContext(),
+        [20, 17, 20, 22, 22, 22, 22],
+        [20, 20, 20, 20, 18, 20, 20],
+      ),
+      unsmoothedConfig,
+    );
+
+    expect(comparison.metrics.speed).toEqual(
+      expect.objectContaining({
+        referenceMinSpeedKmh: expect.closeTo(61.2),
+        targetMinSpeedKmh: expect.closeTo(64.8),
+        minSpeedDeltaKmh: expect.closeTo(3.6),
+        minSpeedDeltaAtTargetMinKmh: expect.closeTo(-14.4),
+        minSpeedDeltaAtReferenceMinKmh: expect.closeTo(10.8),
+        minSpeedDistanceDeltaM: expect.closeTo(30),
+      }),
+    );
+    expect(findingById(comparison, "over-slowing-entry")).toBeUndefined();
+  });
+
   it("keeps throttle-rise-under-brake distinct from throttle carried into brake entry and dropped while braking", () => {
     const dropOnly = compareTelemetry(
       replaceChannels(
@@ -633,6 +766,57 @@ describe("Phase 2 derived metric foundations", () => {
     expect(dropOnly.metrics.pedalCoordination?.targetThrottleRiseWhileBraking).toBeUndefined();
     expect(riseOnly.metrics.brakeToThrottleTransition?.targetThrottleDropWhileBraking).toBeUndefined();
     expect(riseOnly.metrics.pedalCoordination?.targetThrottleRiseWhileBraking?.rise).toBeGreaterThan(0);
+  });
+
+  it("removes isolated shift throttle blips before throttle events and lift metrics are derived", () => {
+    const comparison = compareTelemetry(
+      replaceChannels(
+        makeContext(),
+        {
+          throttle: [0, 0, 0.75, 0, 0.75, 0, 0],
+          gear: [4, 4, 3, 3, 2, 2, 2],
+        },
+        {
+          throttle: [0, 0.75, 0, 0.75, 0, 0, 0],
+          gear: [4, 3, 3, 2, 2, 2, 2],
+        },
+      ),
+      unsmoothedConfig,
+    );
+
+    expect(comparison.referenceEvents.firstThrottleDistancePct).toBeUndefined();
+    expect(comparison.targetEvents.firstThrottleDistancePct).toBeUndefined();
+    expect(comparison.metrics.throttle).toBeUndefined();
+    expect(comparison.metrics.throttleLiftQuality).toEqual(
+      expect.objectContaining({
+        referenceLiftCount: 0,
+        targetLiftCount: 0,
+        referenceAverage: expect.closeTo(0),
+        targetAverage: expect.closeTo(0),
+      }),
+    );
+    expect(Math.max(...Array.from(comparison.target.channels.throttle ?? []))).toBeCloseTo(0);
+  });
+
+  it("keeps sustained throttle pickup near a gear change", () => {
+    const comparison = compareTelemetry(
+      replaceChannels(
+        makeContext(),
+        {
+          throttle: [0, 0, 0, 0.2, 0.6, 1, 1],
+          gear: [3, 3, 3, 3, 4, 4, 4],
+        },
+        {
+          throttle: [0, 0, 0.5, 0.7, 0.9, 1, 1],
+          gear: [3, 3, 4, 4, 4, 4, 4],
+        },
+      ),
+      unsmoothedConfig,
+    );
+
+    expect(comparison.targetEvents.firstThrottleDistancePct).toBeCloseTo(0.104);
+    expect(comparison.metrics.throttle?.firstThrottleDeltaM).toBeLessThan(0);
+    expect(comparison.metrics.throttleLiftQuality?.targetAverage).toBeGreaterThan(0.5);
   });
 
   it("degrades new metric sections cleanly for missing channels, short slices, and no-op baselines", () => {
@@ -872,10 +1056,11 @@ describe("Phase 3 throttle lift quality", () => {
 
     expect(findings.find((finding) => finding.id === "deep-throttle-lift")).toEqual(
       expect.objectContaining({
+        title: "Avoid the deeper throttle reset",
         confidence: 0.7,
         evidence: expect.arrayContaining([
           expect.objectContaining({
-            label: "Lift depth delta",
+            label: "Extra lift depth",
             raw: expect.objectContaining({ depthDelta: expect.any(Number) }),
           }),
         ]),
@@ -1113,12 +1298,33 @@ describe("Phase 2 gearing rules", () => {
         unsmoothedConfig,
       ),
     ).map((finding) => finding.id);
+    const delayedThrottleOnlyIds = findingsFor(
+      compareTelemetry(
+        replaceChannels(
+          makeContext(),
+          {
+            gear: [3, 3, 3, 3, 4, 4, 4],
+            rpm: [5000, 5200, 5400, 5600, 5800, 6000, 6200],
+            speedMs: [22, 21, 20, 21, 22, 23, 24],
+            throttle: [0, 0.2, 0.6, 1, 1, 1, 1],
+          },
+          {
+            gear: [3, 3, 4, 4, 5, 5, 5],
+            rpm: [5000, 5200, 5400, 5600, 5800, 6000, 6200],
+            speedMs: [22, 21, 20, 21, 22, 23, 24],
+            throttle: [0, 0, 0, 0.2, 0.6, 1, 1],
+          },
+        ),
+        unsmoothedConfig,
+      ),
+    ).map((finding) => finding.id);
     const gearingIds = ["wrong-gear-on-exit", "over-revving-without-speed-gain", "short-shift-costing-exit"];
 
     for (const id of gearingIds) {
       expect(missingIds).not.toContain(id);
       expect(harmlessIds).not.toContain(id);
       expect(matchedStrategyIds).not.toContain(id);
+      expect(delayedThrottleOnlyIds).not.toContain(id);
     }
   });
 });
@@ -1584,8 +1790,11 @@ describe("Phase 6 transition, line, and rotation rules", () => {
             raw: expect.objectContaining({ peakBrake: expect.any(Number) }),
           }),
           expect.objectContaining({
-            label: "Overlap distance",
-            raw: expect.objectContaining({ overlapDistanceM: expect.any(Number) }),
+            label: "Rise starts",
+            raw: expect.objectContaining({
+              overlapDistanceM: expect.any(Number),
+              targetDistancePct: expect.any(Number),
+            }),
           }),
         ]),
       }),

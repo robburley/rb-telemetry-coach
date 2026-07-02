@@ -15,6 +15,20 @@ The project is TypeScript-first, uses Vite for both the local development UI and
 
 For end-user behavior and troubleshooting, see [docs/user-guide.md](docs/user-guide.md).
 
+## Changelog
+
+### 0.2.0
+
+- Filters short, isolated throttle blips around gear changes before throttle events and lift metrics are derived, while preserving sustained throttle pickup near shifts.
+- Uses unsmoothed brake traces for brake start, peak, and release timing anchors so braking evidence matches the visible brake shape without disabling smoothed comparison channels.
+- Separates each lap's own minimum-speed delta from same-distance minimum-speed comparisons to avoid false over-slowing findings when the slowest points occur in different places.
+- Normalizes wrapped heading comparisons around apex and minimum speed so rotation rules do not misread angle wraparound as a large heading error.
+- Adds absolute reference or target distance evidence to braking, line, steering, and throttle findings so reports identify where the relevant event occurred.
+- Treats delayed full throttle as an exit symptom rather than enough evidence by itself for a wrong-gear-on-exit finding.
+- Tightens line/path trigger thresholds and makes throttle-rise-while-braking severity use a configurable brake-depth threshold.
+- Updates throttle lift wording and evidence labels to describe deeper throttle resets more clearly.
+- Documents the updated filtering, brake-anchor, speed-metric, throttle-lift, and gearing rule semantics in the rules reference.
+
 ## Repository Layout
 
 | Path | Purpose |

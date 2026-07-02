@@ -3,6 +3,7 @@ import type { Metres } from "../domain/units";
 export interface AnalysisConfig {
   resampling: ResamplingConfig;
   smoothing: SignalSmoothingWindows;
+  filters: SignalFilterConfig;
   events: EventDetectionConfig;
   slicing: SlicingConfig;
   rules: RuleConfig;
@@ -18,6 +19,18 @@ export interface SignalSmoothingWindows {
   brake: Metres;
   throttle: Metres;
   steering: Metres;
+}
+
+export interface SignalFilterConfig {
+  throttleShiftBlip: ThrottleShiftBlipFilterConfig;
+}
+
+export interface ThrottleShiftBlipFilterConfig {
+  enabled: boolean;
+  maxDurationM: Metres;
+  gearChangeWindowM: Metres;
+  peakThreshold: number;
+  edgeThreshold: number;
 }
 
 export interface EventDetectionConfig {
@@ -91,6 +104,7 @@ export interface ThrottleSeverityThresholds {
   highExitSpeedLossKmh: number;
   coastingGapDeltaM: Metres;
   brakeThrottleOverlapM: Metres;
+  brakeDuringThrottleRiseDepth: number;
   extraCorrectionCountDelta: number;
   liftDepth: number;
   liftDepthDelta: number;

@@ -12,7 +12,6 @@ export function wrongGearOnExit(
 ): ReturnType<RuleDefinition> {
   const gearRpm = comparison.metrics.gearRpm;
   const speed = comparison.metrics.speed;
-  const throttle = comparison.metrics.throttle;
   const exitGearDelta = gearRpm?.exitGearDelta;
   if (!gearRpm || exitGearDelta === undefined || Math.abs(exitGearDelta) < comparison.config.rules.triggers.gearDelta) {
     return undefined;
@@ -24,15 +23,12 @@ export function wrongGearOnExit(
     speed !== undefined &&
     (speed.exitSpeedDeltaKmh > comparison.config.rules.triggers.exitSpeedDeltaKmh ||
       speed.averageSpeedDeltaKmh > comparison.config.rules.triggers.minSpeedDeltaKmh);
-  const delayedFullThrottle =
-    throttle?.fullThrottleDeltaM !== undefined &&
-    throttle.fullThrottleDeltaM > comparison.config.rules.triggers.throttleTimingDeltaM;
   const rpmSupportsCost =
     gearRpm.exitRpmDelta !== undefined &&
     ((exitGearDelta > 0 && gearRpm.exitRpmDelta < -comparison.config.rules.triggers.rpmDelta) ||
       (exitGearDelta < 0 && gearRpm.exitRpmDelta > comparison.config.rules.triggers.rpmDelta));
 
-  if (clearSpeedBenefit || (!exitSpeedLoss && !delayedFullThrottle && !rpmSupportsCost)) {
+  if (clearSpeedBenefit || (!exitSpeedLoss && !rpmSupportsCost)) {
     return undefined;
   }
 

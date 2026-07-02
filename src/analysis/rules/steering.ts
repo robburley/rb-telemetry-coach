@@ -1,4 +1,4 @@
-import { formatDegreesDelta, formatDistanceDelta, formatHeadingDelta, formatSpeedDelta, makeEvidence } from "../evidence";
+import { formatDegreesDelta, formatDistanceAt, formatDistanceDelta, formatHeadingDelta, formatSpeedDelta, makeEvidence } from "../evidence";
 import type { RuleDefinition } from "./index";
 
 export const steeringRules: RuleDefinition[] = [
@@ -28,7 +28,16 @@ export function excessiveSteering(
     category: "steering",
     severity: steering.peakSteeringDeltaDeg > comparison.config.rules.severity.steering.peakSteeringDeltaDeg ? "high" : "medium",
     confidence: 0.74,
-    evidence: [makeEvidence("Peak steering", formatDegreesDelta(steering.peakSteeringDeltaDeg), "delta", "primary", { deltaDeg: steering.peakSteeringDeltaDeg })],
+    evidence: [
+      makeEvidence("Peak steering", formatDegreesDelta(steering.peakSteeringDeltaDeg), "delta", "primary", { deltaDeg: steering.peakSteeringDeltaDeg }),
+      ...(comparison.targetEvents.steeringPeakDistancePct === undefined
+        ? []
+        : [
+            makeEvidence("Target peak", formatDistanceAt(comparison.targetEvents.steeringPeakDistancePct, comparison.metrics.lapLengthM), "absolute", "secondary", {
+              targetDistancePct: comparison.targetEvents.steeringPeakDistancePct,
+            }),
+          ]),
+    ],
     linkedRules: [{ id: "poor-rotation", reason: "extra wheel can be a symptom of rotation" }],
   };
 }
@@ -108,7 +117,16 @@ export function lateSteeringUnwind(
     category: "steering",
     severity: delta > comparison.config.rules.severity.steering.steeringUnwindDeltaM ? "high" : "medium",
     confidence: 0.72,
-    evidence: [makeEvidence("Steering unwind", formatDistanceDelta(delta), "delta", "primary", { deltaM: delta })],
+    evidence: [
+      makeEvidence("Steering unwind", formatDistanceDelta(delta), "delta", "primary", { deltaM: delta }),
+      ...(comparison.targetEvents.steeringUnwindDistancePct === undefined
+        ? []
+        : [
+            makeEvidence("Target unwind", formatDistanceAt(comparison.targetEvents.steeringUnwindDistancePct, comparison.metrics.lapLengthM), "absolute", "secondary", {
+              targetDistancePct: comparison.targetEvents.steeringUnwindDistancePct,
+            }),
+          ]),
+    ],
     linkedRules: [{ id: "unnecessary-throttle-lift", reason: "late unwind can force a throttle reset" }],
   };
 }
@@ -137,6 +155,13 @@ export function poorRotation(
     confidence: 0.66,
     evidence: [
       makeEvidence("Peak steering", formatDegreesDelta(steering.peakSteeringDeltaDeg), "delta", "primary", { deltaDeg: steering.peakSteeringDeltaDeg }),
+      ...(comparison.targetEvents.steeringPeakDistancePct === undefined
+        ? []
+        : [
+            makeEvidence("Target peak", formatDistanceAt(comparison.targetEvents.steeringPeakDistancePct, comparison.metrics.lapLengthM), "absolute", "secondary", {
+              targetDistancePct: comparison.targetEvents.steeringPeakDistancePct,
+            }),
+          ]),
       makeEvidence("Brake release", formatDistanceDelta(braking?.brakeReleaseDeltaM), "delta", "secondary"),
     ],
   };
@@ -174,6 +199,13 @@ export function underRotatedAtApex(
     confidence: 0.66,
     evidence: [
       makeEvidence("Apex rotation", formatHeadingDelta(apexDelta), "delta", "primary", { headingDeltaDeg: apexDelta }),
+      ...(comparison.metrics.apex?.targetDistancePct === undefined
+        ? []
+        : [
+            makeEvidence("Target apex", formatDistanceAt(comparison.metrics.apex.targetDistancePct, comparison.metrics.lapLengthM), "absolute", "secondary", {
+              targetDistancePct: comparison.metrics.apex.targetDistancePct,
+            }),
+          ]),
       ...(steering
         ? [makeEvidence("Peak steering", formatDegreesDelta(steering.peakSteeringDeltaDeg), "delta", "secondary", { deltaDeg: steering.peakSteeringDeltaDeg })]
         : []),
@@ -282,6 +314,9 @@ export function minimumSpeedTooEarlyOrLate(
     evidence: [
       makeEvidence("Minimum-speed location", formatDistanceDelta(delta), "delta", "primary", {
         minSpeedDistanceDeltaM: delta,
+      }),
+      makeEvidence("Target minimum", formatDistanceAt(speed.minSpeedDistancePct, comparison.metrics.lapLengthM), "absolute", "secondary", {
+        targetDistancePct: speed.minSpeedDistancePct,
       }),
       makeEvidence(
         early ? "Minimum speed" : "Exit speed",
