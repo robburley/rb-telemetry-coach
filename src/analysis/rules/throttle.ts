@@ -1,4 +1,5 @@
 import {
+  formatDistanceAt,
   formatDistanceDuration,
   formatDurationDelta,
   formatPedalPointDelta,
@@ -40,7 +41,12 @@ export function delayedThrottlePickup(
     category: "throttle",
     severity: delta > comparison.config.rules.severity.throttle.throttleTimingDeltaM ? "high" : "medium",
     confidence: 0.78,
-    evidence: [makeEvidence("First throttle", formatDistanceDelta(delta), "delta", "primary", { deltaM: delta })],
+    evidence: [
+      makeEvidence("First throttle", formatDistanceDelta(delta), "delta", "primary", { deltaM: delta }),
+      makeEvidence("Target pickup", formatDistanceAt(comparison.targetEvents.firstThrottleDistancePct!, comparison.metrics.lapLengthM), "absolute", "secondary", {
+        targetDistancePct: comparison.targetEvents.firstThrottleDistancePct!,
+      }),
+    ],
   };
 }
 
@@ -65,6 +71,9 @@ export function earlyThrottleWithLift(
     confidence: 0.77,
     evidence: [
       makeEvidence("First throttle", formatDistanceDelta(firstDelta), "delta", "primary", { deltaM: firstDelta }),
+      makeEvidence("Target pickup", formatDistanceAt(comparison.targetEvents.firstThrottleDistancePct!, comparison.metrics.lapLengthM), "absolute", "secondary", {
+        targetDistancePct: comparison.targetEvents.firstThrottleDistancePct!,
+      }),
       makeEvidence("Extra lifts", `${extraLifts}`, "comparison", "secondary", { extraLifts }),
     ],
     linkedRules: [
@@ -174,7 +183,8 @@ export function rushedBrakeToThrottle(
     targetOverlap > comparison.config.rules.triggers.coastingGapDeltaM &&
     throttleDrop !== undefined &&
     throttleDrop > comparison.config.rules.triggers.pedalDepthDelta &&
-    (overlapDelta === undefined || overlapDelta > comparison.config.rules.triggers.coastingGapDeltaM / 2) &&
+    (overlapDelta === undefined ||
+      overlapDelta > comparison.config.rules.triggers.coastingGapDeltaM / comparison.config.rules.factors.throttle.rushedCoastGapDivisor) &&
     (throttleDropDelta === undefined || throttleDropDelta > comparison.config.rules.triggers.pedalDepthDelta / 2);
   const poorOutcome =
     (lift?.liftCountDelta ?? 0) > 0 ||
@@ -257,14 +267,12 @@ export function throttleBeforeSteeringUnwind(
       makeEvidence("Throttle before unwind", formatDistanceDelta(firstDelta), "delta", "primary", {
         firstThrottleDeltaM: firstDelta,
       }),
+      makeEvidence("Target pickup", formatDistanceAt(comparison.targetEvents.firstThrottleDistancePct!, comparison.metrics.lapLengthM), "absolute", "secondary", {
+        targetDistancePct: comparison.targetEvents.firstThrottleDistancePct!,
+      }),
       makeEvidence("Steering unwind", formatDistanceDelta(unwindDelta), "delta", "secondary", {
         steeringUnwindDeltaM: unwindDelta,
       }),
-      ...(speed === undefined
-        ? []
-        : [makeEvidence("Exit speed", formatSpeedDelta(speed.exitSpeedDeltaKmh), "delta", "secondary", {
-            deltaKmh: speed.exitSpeedDeltaKmh,
-          })]),
     ],
     linkedRules: [
       { id: "early-throttle-with-lift", reason: "early throttle before unwind can force a lift" },
@@ -305,7 +313,7 @@ export function throttleReappliedWhileBraking(
     category: "throttle",
     severity:
       targetRise.rise > comparison.config.rules.severity.throttle.liftDepth ||
-      targetRise.peakBrake > 0.5 ||
+      targetRise.peakBrake > comparison.config.rules.severity.throttle.brakeDuringThrottleRiseDepth ||
       (steering?.correctionCountDelta ?? 0) > comparison.config.rules.severity.throttle.extraCorrectionCountDelta
         ? "high"
         : "medium",
@@ -319,7 +327,8 @@ export function throttleReappliedWhileBraking(
         averageBrake: targetRise.averageBrake,
         peakBrake: targetRise.peakBrake,
       }),
-      makeEvidence("Overlap distance", formatDistanceDuration(targetRise.distanceM), "absolute", "secondary", {
+      makeEvidence("Rise starts", formatDistanceAt(targetRise.startDistancePct, comparison.metrics.lapLengthM), "absolute", "secondary", {
+        targetDistancePct: targetRise.startDistancePct,
         overlapDistanceM: targetRise.distanceM ?? 0,
       }),
     ],
@@ -421,11 +430,15 @@ export function unnecessaryThrottleLift(
       makeEvidence("Lift depth", formatPedalPointDelta(-lift.targetMaxLiftDepth), "absolute", "primary", {
         targetMaxLiftDepth: lift.targetMaxLiftDepth,
       }),
+      ...(lift.targetFirstLiftStartDistancePct === undefined
+        ? []
+        : [
+            makeEvidence("Lift starts", formatDistanceAt(lift.targetFirstLiftStartDistancePct, comparison.metrics.lapLengthM), "absolute", "secondary", {
+              targetDistancePct: lift.targetFirstLiftStartDistancePct,
+            }),
+          ]),
       makeEvidence("Exit speed", formatSpeedDelta(speed.exitSpeedDeltaKmh), "delta", "secondary", {
         deltaKmh: speed.exitSpeedDeltaKmh,
-      }),
-      makeEvidence("Reference lifts", `${lift.referenceLiftCount}`, "comparison", "secondary", {
-        referenceLiftCount: lift.referenceLiftCount,
       }),
     ],
     linkedRules: [{ id: "exit-hesitation", reason: "extra lifts can delay exit commitment" }],
@@ -447,17 +460,24 @@ export function deepThrottleLift(
   return {
     id: "deep-throttle-lift",
     priority: 67,
-    title: "Make the lift shallower",
-    why: "Your throttle drop is materially deeper than the reference, which can unsettle the car or delay the exit drive.",
-    practiceCue: "If you need to breathe the throttle, make it a smaller trim instead of a full confidence reset.",
+    title: "Avoid the deeper throttle reset",
+    why: "Your biggest throttle lift closes the pedal much farther than the reference, turning a small trim into a larger reset.",
+    practiceCue: "At the same point in the corner, reduce the lift to a brief partial pedal trim so the exit ramp can keep building.",
     category: "throttle",
     severity: lift.maxLiftDepthDelta > comparison.config.rules.severity.throttle.liftDepthDelta ? "high" : "medium",
     confidence: 0.7,
     evidence: [
-      makeEvidence("Lift depth delta", formatPedalPointDelta(-lift.maxLiftDepthDelta), "delta", "primary", {
+      makeEvidence("Extra lift depth", formatPedalPointDelta(-lift.maxLiftDepthDelta), "delta", "primary", {
         depthDelta: lift.maxLiftDepthDelta,
       }),
-      makeEvidence("Target max lift", formatPedalPointDelta(-lift.targetMaxLiftDepth), "absolute", "secondary", {
+      ...(lift.targetFirstLiftStartDistancePct === undefined
+        ? []
+        : [
+            makeEvidence("Lift starts", formatDistanceAt(lift.targetFirstLiftStartDistancePct, comparison.metrics.lapLengthM), "absolute", "secondary", {
+              targetDistancePct: lift.targetFirstLiftStartDistancePct,
+            }),
+          ]),
+      makeEvidence("Target reset depth", formatPedalPointDelta(-lift.targetMaxLiftDepth), "absolute", "secondary", {
         targetMaxLiftDepth: lift.targetMaxLiftDepth,
       }),
     ],
@@ -492,9 +512,13 @@ export function longThrottleLift(
       makeEvidence("Pause vs reference", formatDurationDelta(durationDelta), "delta", "primary", {
         durationDeltaM: durationDelta,
       }),
-      makeEvidence("Your throttle pause", formatDistanceDuration(lift.targetLongestLiftDurationM), "absolute", "primary", {
-        targetLongestLiftDurationM: lift.targetLongestLiftDurationM ?? 0,
-      }),
+      ...(lift.targetFirstLiftStartDistancePct === undefined
+        ? []
+        : [
+            makeEvidence("Lift starts", formatDistanceAt(lift.targetFirstLiftStartDistancePct, comparison.metrics.lapLengthM), "absolute", "secondary", {
+              targetDistancePct: lift.targetFirstLiftStartDistancePct,
+            }),
+          ]),
       makeEvidence("Reference throttle pause", formatDistanceDuration(lift.referenceLongestLiftDurationM), "comparison", "secondary", {
         referenceLongestLiftDurationM: lift.referenceLongestLiftDurationM ?? 0,
       }),

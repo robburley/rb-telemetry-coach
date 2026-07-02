@@ -2,7 +2,7 @@
 
 This analyzer compares the selected Garage 61 distance slice from a target lap against a reference lap. The reference is the local baseline for timing, speed, line, gear, and pedal shape; it is not treated as a perfect or absolute driving model.
 
-The pipeline normalizes Garage 61 telemetry, resamples both laps onto the selected distance slice, smooths noisy channels, detects driving events, derives comparison metrics, then runs deterministic rules. Rules stay quiet when their required telemetry channels or derived metrics are unavailable, so missing channels degrade the report instead of crashing analysis.
+The pipeline normalizes Garage 61 telemetry, resamples both laps onto the selected distance slice, filters short shift-related throttle blips, smooths noisy channels, detects driving events, derives comparison metrics, then runs deterministic rules. Brake start, peak, and release timing anchors use the filtered unsmoothed brake trace so evidence locations match the visible brake shape; noisier throttle and steering events still use the smoothed comparison trace. Rules stay quiet when their required telemetry channels or derived metrics are unavailable, so missing channels degrade the report instead of crashing analysis.
 
 Most thresholds are intentionally conservative. Distance-based timing checks usually use 8-10 m deltas, speed checks use roughly 3 km/h deltas, pedal depth checks use roughly 0.12-0.15 normalized pedal travel, lateral/path checks use metre-scale deltas, and RPM/gear checks require meaningful strategy differences.
 
@@ -14,6 +14,7 @@ The config is grouped by pipeline purpose:
 
 - `resampling`: distance step and maximum point count for the normalized slice.
 - `smoothing`: per-channel distance windows for speed, brake, throttle, and steering.
+- `filters`: signal cleanup before event detection, including gear-aware suppression of short isolated throttle blips during shifts.
 - `events`: detection thresholds for active brake/throttle, full throttle, throttle lifts, steering noise, and steering unwind.
 - `slicing`: minimum and maximum selected-slice length limits.
 - `rules.triggers`: thresholds that decide whether a deterministic finding appears.
@@ -35,9 +36,9 @@ const config = createAnalysisConfig({
 
 The currently decoded channels are speed, brake, throttle, steering, gear, RPM, latitude, longitude, heading, and distance percentage. The deterministic rules use these derived metric groups:
 
-- Speed: entry, average, minimum, exit speed deltas, and minimum-speed location.
+- Speed: entry, average, own-minimum, same-distance minimum, exit speed deltas, and minimum-speed location.
 - Braking: brake start, release, duration, peak pressure, pressure area, ramp, release shape, and brake near minimum speed.
-- Throttle: first throttle, full throttle, lift count, lift depth, lift duration, coast gap, throttle area, and speed lost while coasting.
+- Throttle: first throttle, full throttle, lift count, lift depth, lift duration, coast gap, throttle area, and speed lost while coasting. Short isolated throttle blips near gear changes are filtered before these metrics are derived.
 - Steering and rotation: peak steering, correction count, unwind timing, heading change, apex heading, and equivalent heading timing.
 - Line and path: heading-aware lateral offset at entry, apex, and exit, maximum path separation, and inferred corner direction.
 - Apex and speed shape: relative apex candidate timing, min-speed-to-exit gain, and apex-to-exit gain.
@@ -77,8 +78,8 @@ The currently decoded channels are speed, brake, throttle, steering, gear, RPM, 
 
 - Category: braking
 - Required telemetry: speed from both laps.
-- Key metrics: minimum speed delta and minimum-speed location.
-- Trigger logic: the target minimum speed is materially lower than the reference.
+- Key metrics: own-minimum speed delta and minimum-speed location.
+- Trigger logic: the target's own minimum speed is materially lower than the reference's own minimum speed.
 - Primary evidence: `Minimum speed`.
 - Different from: `minimum-speed-too-early-or-late`, which diagnoses where the slowest point happens.
 
@@ -224,8 +225,8 @@ The currently decoded channels are speed, brake, throttle, steering, gear, RPM, 
 - Category: throttle
 - Required telemetry: throttle from both laps.
 - Key metrics: maximum lift depth delta and target maximum lift depth.
-- Trigger logic: target lift depth is materially deeper than the reference.
-- Primary evidence: `Lift depth delta`.
+- Trigger logic: target's deepest throttle reset closes the pedal materially more than the reference's deepest reset.
+- Primary evidence: `Extra lift depth`.
 - Different from: `long-throttle-lift`, which is about lift duration rather than depth.
 
 ### `long-throttle-lift`
@@ -298,7 +299,7 @@ The currently decoded channels are speed, brake, throttle, steering, gear, RPM, 
 
 - Category: rotation
 - Required telemetry: speed from both laps.
-- Key metrics: minimum-speed location delta, minimum speed delta, exit speed delta, and exit acceleration gain.
+- Key metrics: minimum-speed location delta, own-minimum speed delta, exit speed delta, and exit acceleration gain.
 - Trigger logic: target minimum speed occurs materially earlier with over-slowing, or materially later with exit speed or acceleration cost.
 - Primary evidence: `Minimum-speed location`.
 - Different from: `over-slowing-entry`, which only diagnoses how slow the minimum speed is.
@@ -393,9 +394,9 @@ The currently decoded channels are speed, brake, throttle, steering, gear, RPM, 
 ### `wrong-gear-on-exit`
 
 - Category: gearing
-- Required telemetry: gear or RPM, with speed or throttle support.
-- Key metrics: exit gear delta, exit RPM delta, exit speed, average speed, and full throttle timing.
-- Trigger logic: target exit gear differs materially from reference and exit speed, RPM, or full-throttle timing supports a cost. Faster alternate strategies stay quiet.
+- Required telemetry: gear or RPM, with speed or RPM-backed cost support.
+- Key metrics: exit gear delta, exit RPM delta, exit speed, and average speed.
+- Trigger logic: target exit gear differs materially from reference and exit speed loss or RPM direction supports a cost. Delayed full throttle alone is treated as an exit symptom, not enough evidence for a gearing finding. Faster alternate strategies stay quiet.
 - Primary evidence: `Exit gear`.
 - Different from: `short-shift-costing-exit`, which focuses on taller/lower-RPM strategy with worse exit drive.
 

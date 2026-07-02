@@ -40,7 +40,13 @@ export function brakingTooEarly(
     category: "braking",
     severity: Math.abs(delta) > comparison.config.rules.severity.braking.brakeTimingDeltaM ? "high" : "medium",
     confidence: 0.82,
-    evidence: [makeEvidence("Brake start", formatDistanceDelta(delta), "delta", "primary", { deltaM: delta })],
+    evidence: [
+      makeEvidence("Brake start", formatDistanceDelta(delta), "delta", "primary", { deltaM: delta }),
+      makeEvidence("Reference start", formatDistanceAt(comparison.referenceEvents.brakeStartDistancePct!, comparison.metrics.lapLengthM), "absolute", "secondary", {
+        referenceDistancePct: comparison.referenceEvents.brakeStartDistancePct!,
+        targetDistancePct: comparison.targetEvents.brakeStartDistancePct!,
+      }),
+    ],
   };
 }
 
@@ -62,7 +68,13 @@ export function brakingTooLate(
     category: "braking",
     severity: delta > comparison.config.rules.severity.braking.brakeTimingDeltaM ? "high" : "medium",
     confidence: 0.8,
-    evidence: [makeEvidence("Brake start", formatDistanceDelta(delta), "delta", "primary", { deltaM: delta })],
+    evidence: [
+      makeEvidence("Brake start", formatDistanceDelta(delta), "delta", "primary", { deltaM: delta }),
+      makeEvidence("Reference start", formatDistanceAt(comparison.referenceEvents.brakeStartDistancePct!, comparison.metrics.lapLengthM), "absolute", "secondary", {
+        referenceDistancePct: comparison.referenceEvents.brakeStartDistancePct!,
+        targetDistancePct: comparison.targetEvents.brakeStartDistancePct!,
+      }),
+    ],
     linkedRules: [{ id: "over-driving-entry", reason: "late braking can start the entry cascade" }],
   };
 }
@@ -85,7 +97,13 @@ export function holdingBrakeTooLong(
     category: "braking",
     severity: delta > comparison.config.rules.severity.braking.brakeDurationDeltaM ? "high" : "medium",
     confidence: 0.78,
-    evidence: [makeEvidence("Brake duration", formatDistanceDelta(delta), "delta", "primary", { deltaM: delta })],
+    evidence: [
+      makeEvidence("Brake duration", formatDistanceDelta(delta), "delta", "primary", { deltaM: delta }),
+      makeEvidence("Reference release", formatDistanceAt(comparison.referenceEvents.brakeReleaseDistancePct!, comparison.metrics.lapLengthM), "absolute", "secondary", {
+        referenceDistancePct: comparison.referenceEvents.brakeReleaseDistancePct!,
+        targetDistancePct: comparison.targetEvents.brakeReleaseDistancePct!,
+      }),
+    ],
     linkedRules: [{ id: "delayed-throttle-pickup", reason: "long brake release can delay throttle" }],
   };
 }
@@ -140,6 +158,10 @@ export function insufficientTrailBraking(
     confidence: 0.68,
     evidence: [
       makeEvidence("Brake release", formatDistanceDelta(releaseDelta), "delta", "primary", { deltaM: releaseDelta }),
+      makeEvidence("Reference release", formatDistanceAt(comparison.referenceEvents.brakeReleaseDistancePct!, comparison.metrics.lapLengthM), "absolute", "secondary", {
+        referenceDistancePct: comparison.referenceEvents.brakeReleaseDistancePct!,
+        targetDistancePct: comparison.targetEvents.brakeReleaseDistancePct!,
+      }),
       makeEvidence("Minimum speed", formatSpeedDelta(speed.minSpeedDeltaKmh), "delta", "secondary", { deltaKmh: speed.minSpeedDeltaKmh }),
     ],
   };
@@ -258,6 +280,10 @@ export function dumpingBrakeRelease(
     confidence: 0.63,
     evidence: [
       makeEvidence("Release distance", formatDistanceDelta(releaseDelta), "delta", "primary", { releaseDeltaM: releaseDelta }),
+      makeEvidence("Reference release", formatDistanceAt(comparison.referenceEvents.brakeReleaseDistancePct!, comparison.metrics.lapLengthM), "absolute", "secondary", {
+        referenceDistancePct: comparison.referenceEvents.brakeReleaseDistancePct!,
+        targetDistancePct: comparison.targetEvents.brakeReleaseDistancePct!,
+      }),
       ...(steering
         ? [makeEvidence("Peak steering", `${steering.peakSteeringDeltaDeg.toFixed(1)} deg extra`, "delta", "secondary", { deltaDeg: steering.peakSteeringDeltaDeg })]
         : []),

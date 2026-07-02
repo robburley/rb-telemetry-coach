@@ -1,5 +1,5 @@
 import { defaultAnalysisConfig } from "./config";
-import type { AnalysisConfig, EventDetectionConfig } from "./configTypes";
+import type { AnalysisConfig, EventDetectionConfig, ThrottleShiftBlipFilterConfig } from "./configTypes";
 import type {
   ApexComparisonMetrics,
   ApexEvidenceSource,
@@ -22,7 +22,7 @@ import type {
   ThrottleLiftQualityComparisonMetrics,
   ThrottleRiseWhileBrakingMetrics,
 } from "./comparisonTypes";
-import { detectDrivingEvents } from "./events";
+import { detectBrakeEvents, detectDrivingEvents } from "./events";
 import { resampleTelemetryPair } from "./resampling";
 import { smoothResampledTelemetry } from "./smoothing";
 import type { ComparisonContext } from "../domain/comparisonContextTypes";
@@ -66,10 +66,18 @@ export function compareTelemetry(
     context.slice,
     { lapLengthM, config },
   );
-  const reference = smoothResampledTelemetry(referenceRaw, config);
-  const target = smoothResampledTelemetry(targetRaw, config);
-  const referenceEvents = detectDrivingEvents(reference, config.events);
-  const targetEvents = detectDrivingEvents(target, config.events);
+  const referenceFiltered = removeShiftThrottleBlips(referenceRaw, config.filters.throttleShiftBlip);
+  const targetFiltered = removeShiftThrottleBlips(targetRaw, config.filters.throttleShiftBlip);
+  const reference = smoothResampledTelemetry(referenceFiltered, config);
+  const target = smoothResampledTelemetry(targetFiltered, config);
+  const referenceEvents = {
+    ...detectDrivingEvents(reference, config.events),
+    ...detectBrakeEvents(referenceFiltered, config.events),
+  };
+  const targetEvents = {
+    ...detectDrivingEvents(target, config.events),
+    ...detectBrakeEvents(targetFiltered, config.events),
+  };
 
   return {
     context,
@@ -120,14 +128,20 @@ function compareSpeed(
   const targetMin = minWithIndex(targetSpeed);
   const minIndex = targetMin.index;
   const exitIndex = targetSpeed.length - 1;
+  const referenceSpeedAtTargetMin = referenceSpeed[targetMin.index]!;
+  const targetSpeedAtReferenceMin = targetSpeed[referenceMin.index]!;
 
   return {
     entrySpeedDeltaKmh: msToKmh(targetSpeed[0]! - referenceSpeed[0]!),
-    minSpeedDeltaKmh: msToKmh(targetMin.value - referenceSpeed[minIndex]!),
+    minSpeedDeltaKmh: msToKmh(targetMin.value - referenceMin.value),
+    minSpeedDeltaAtTargetMinKmh: msToKmh(targetMin.value - referenceSpeedAtTargetMin),
+    minSpeedDeltaAtReferenceMinKmh: msToKmh(targetSpeedAtReferenceMin - referenceMin.value),
     exitSpeedDeltaKmh: msToKmh(targetSpeed[exitIndex]! - referenceSpeed[exitIndex]!),
     averageSpeedDeltaKmh: msToKmh(average(targetSpeed) - average(referenceSpeed)),
     referenceMinSpeedKmh: msToKmh(referenceMin.value),
     targetMinSpeedKmh: msToKmh(targetMin.value),
+    referenceSpeedAtTargetMinKmh: msToKmh(referenceSpeedAtTargetMin),
+    targetSpeedAtReferenceMinKmh: msToKmh(targetSpeedAtReferenceMin),
     referenceMinSpeedDistancePct: reference.distancePct[referenceMin.index]!,
     targetMinSpeedDistancePct: target.distancePct[targetMin.index]!,
     minSpeedDistanceDeltaM: eventDeltaM(
@@ -211,6 +225,139 @@ function compareThrottle(
     targetLiftCount: targetEvents.throttleLiftDistancePct?.length ?? 0,
     referenceLiftCount: referenceEvents.throttleLiftDistancePct?.length ?? 0,
   };
+}
+
+function removeShiftThrottleBlips(
+  telemetry: ResampledTelemetry,
+  config: ThrottleShiftBlipFilterConfig,
+): ResampledTelemetry {
+  const throttle = telemetry.channels.throttle;
+  const gear = telemetry.channels.gear;
+  if (!config.enabled || !throttle || !gear || throttle.length < 3 || gear.length !== throttle.length) {
+    return telemetry;
+  }
+
+  const cleaned = throttle.slice();
+  const gearChangeIndexes = findGearChangeIndexes(gear);
+  if (gearChangeIndexes.length === 0) {
+    return telemetry;
+  }
+
+  let index = 0;
+  while (index < throttle.length) {
+    if (clampPedal(throttle[index]!) <= config.edgeThreshold) {
+      index += 1;
+      continue;
+    }
+
+    const startIndex = index;
+    let endIndex = index;
+    let peak = clampPedal(throttle[index]!);
+    index += 1;
+    while (index < throttle.length && clampPedal(throttle[index]!) > config.edgeThreshold) {
+      peak = Math.max(peak, clampPedal(throttle[index]!));
+      endIndex = index;
+      index += 1;
+    }
+
+    if (isShiftThrottleBlip(telemetry, throttle, gearChangeIndexes, startIndex, endIndex, peak, config)) {
+      replaceThrottleSegmentWithBaseline(cleaned, throttle, startIndex, endIndex);
+    }
+  }
+
+  return {
+    ...telemetry,
+    channels: {
+      ...telemetry.channels,
+      throttle: cleaned,
+    },
+  };
+}
+
+function findGearChangeIndexes(gear: Int32Array): number[] {
+  const indexes: number[] = [];
+  for (let index = 1; index < gear.length; index += 1) {
+    if (gear[index] !== gear[index - 1]) {
+      indexes.push(index);
+    }
+  }
+  return indexes;
+}
+
+function isShiftThrottleBlip(
+  telemetry: ResampledTelemetry,
+  throttle: Float32Array,
+  gearChangeIndexes: number[],
+  startIndex: number,
+  endIndex: number,
+  peak: number,
+  config: ThrottleShiftBlipFilterConfig,
+): boolean {
+  if (startIndex === 0 || endIndex >= throttle.length - 1 || peak < config.peakThreshold) {
+    return false;
+  }
+
+  if (
+    clampPedal(throttle[startIndex - 1]!) > config.edgeThreshold ||
+    clampPedal(throttle[endIndex + 1]!) > config.edgeThreshold
+  ) {
+    return false;
+  }
+
+  const durationM = distanceBetweenIndexes(telemetry, startIndex, endIndex);
+  if (durationM !== undefined && durationM > config.maxDurationM) {
+    return false;
+  }
+
+  return gearChangeIndexes.some(
+    (gearChangeIndex) =>
+      distanceFromIndexToWindowM(telemetry, gearChangeIndex, startIndex, endIndex) <= config.gearChangeWindowM,
+  );
+}
+
+function replaceThrottleSegmentWithBaseline(
+  output: Float32Array,
+  source: Float32Array,
+  startIndex: number,
+  endIndex: number,
+): void {
+  const before = clampPedal(source[startIndex - 1]!);
+  const after = clampPedal(source[endIndex + 1]!);
+  const span = endIndex - startIndex + 2;
+  for (let index = startIndex; index <= endIndex; index += 1) {
+    const ratio = (index - startIndex + 1) / span;
+    output[index] = before + (after - before) * ratio;
+  }
+}
+
+function distanceBetweenIndexes(
+  telemetry: ResampledTelemetry,
+  startIndex: number,
+  endIndex: number,
+): number | undefined {
+  const distanceM = telemetry.distanceM;
+  return distanceM ? Math.max(0, distanceM[endIndex]! - distanceM[startIndex]!) : endIndex - startIndex;
+}
+
+function distanceFromIndexToWindowM(
+  telemetry: ResampledTelemetry,
+  index: number,
+  startIndex: number,
+  endIndex: number,
+): number {
+  if (index >= startIndex && index <= endIndex) {
+    return 0;
+  }
+
+  const distanceM = telemetry.distanceM;
+  if (!distanceM) {
+    return index < startIndex ? startIndex - index : index - endIndex;
+  }
+
+  if (index < startIndex) {
+    return Math.max(0, distanceM[startIndex]! - distanceM[index]!);
+  }
+  return Math.max(0, distanceM[index]! - distanceM[endIndex]!);
 }
 
 function compareSteering(
@@ -747,6 +894,7 @@ function compareHeadingRotation(
 
   const referenceUnwrapped = unwrapAngles(referenceHeading);
   const targetUnwrapped = unwrapAngles(targetHeading);
+  const targetAlignedToReference = alignUnwrappedAngles(referenceUnwrapped, targetUnwrapped);
   const referenceHeadingChangeDeg = radToDeg(
     referenceUnwrapped[referenceUnwrapped.length - 1]! - referenceUnwrapped[0]!,
   );
@@ -759,24 +907,28 @@ function compareHeadingRotation(
   const targetMinSpeedIndex = minSpeedIndex(target);
   const referenceEquivalentHeadingIndex =
     referenceApexIndex !== undefined
-      ? closestValueIndex(targetUnwrapped, referenceUnwrapped[referenceApexIndex]!)
+      ? closestValueIndex(targetAlignedToReference, referenceUnwrapped[referenceApexIndex]!)
       : undefined;
 
   return {
     targetHeadingChangeDeg,
     referenceHeadingChangeDeg,
     headingChangeDeltaDeg: targetHeadingChangeDeg - referenceHeadingChangeDeg,
-    targetHeadingAtApexDeg: valueAtDeg(targetUnwrapped, targetApexIndex),
+    targetHeadingAtApexDeg: valueAtDeg(targetAlignedToReference, targetApexIndex),
     referenceHeadingAtApexDeg: valueAtDeg(referenceUnwrapped, referenceApexIndex),
-    apexHeadingDeltaDeg: optionalDelta(
-      valueAtDeg(targetUnwrapped, targetApexIndex),
-      valueAtDeg(referenceUnwrapped, referenceApexIndex),
+    apexHeadingDeltaDeg: angularDeltaAtDeg(
+      targetAlignedToReference,
+      referenceUnwrapped,
+      targetApexIndex,
+      referenceApexIndex,
     ),
-    targetHeadingAtMinSpeedDeg: valueAtDeg(targetUnwrapped, targetMinSpeedIndex),
+    targetHeadingAtMinSpeedDeg: valueAtDeg(targetAlignedToReference, targetMinSpeedIndex),
     referenceHeadingAtMinSpeedDeg: valueAtDeg(referenceUnwrapped, referenceMinSpeedIndex),
-    minSpeedHeadingDeltaDeg: optionalDelta(
-      valueAtDeg(targetUnwrapped, targetMinSpeedIndex),
-      valueAtDeg(referenceUnwrapped, referenceMinSpeedIndex),
+    minSpeedHeadingDeltaDeg: angularDeltaAtDeg(
+      targetAlignedToReference,
+      referenceUnwrapped,
+      targetMinSpeedIndex,
+      referenceMinSpeedIndex,
     ),
     targetReferenceEquivalentHeadingDistanceDeltaM:
       referenceApexIndex !== undefined && referenceEquivalentHeadingIndex !== undefined
@@ -1247,6 +1399,34 @@ function closestValueIndex(values: Float64Array, target: number): number | undef
     }
   }
   return index;
+}
+
+function alignUnwrappedAngles(reference: Float64Array, target: Float64Array): Float64Array {
+  if (reference.length === 0 || target.length === 0) {
+    return target;
+  }
+
+  const offset = Math.round((reference[0]! - target[0]!) / (Math.PI * 2)) * Math.PI * 2;
+  if (offset === 0) {
+    return target;
+  }
+  return Float64Array.from(target, (value) => value + offset);
+}
+
+function angularDeltaAtDeg(
+  target: Float64Array,
+  reference: Float64Array,
+  targetIndex: number | undefined,
+  referenceIndex: number | undefined,
+): number | undefined {
+  if (targetIndex === undefined || referenceIndex === undefined) {
+    return undefined;
+  }
+  return radToDeg(normalizeSignedAngleRad(target[targetIndex]! - reference[referenceIndex]!));
+}
+
+function normalizeSignedAngleRad(value: number): number {
+  return Math.atan2(Math.sin(value), Math.cos(value));
 }
 
 function valueAtDeg(values: Float64Array, index: number | undefined): number | undefined {

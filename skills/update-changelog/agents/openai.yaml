@@ -1,0 +1,4 @@
+interface:
+  display_name: "Update Changelog"
+  short_description: "Summarize unstaged repo changes into a versioned changelog"
+  default_prompt: "Use $update-changelog to inspect unstaged changes, bump the package version, and update the README changelog."

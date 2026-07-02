@@ -38,6 +38,9 @@ export function overDrivingEntry(
     evidence: [
       makeEvidence("Entry speed", formatSpeedDelta(speed.entrySpeedDeltaKmh), "delta", "primary", { deltaKmh: speed.entrySpeedDeltaKmh }),
       makeEvidence("Minimum speed", formatSpeedDelta(speed.minSpeedDeltaKmh), "delta", "secondary", { deltaKmh: speed.minSpeedDeltaKmh }),
+      makeEvidence("Minimum at", formatDistanceAt(speed.minSpeedDistancePct, comparison.metrics.lapLengthM), "absolute", "secondary", {
+        targetDistancePct: speed.minSpeedDistancePct,
+      }),
     ],
     linkedRules: [
       { id: "over-slowing-entry", reason: "entry speed often turns into minimum-speed loss" },
@@ -77,6 +80,9 @@ export function unusedTrackOnEntryRelativeToReference(
     evidence: [
       makeEvidence("Entry offset", formatLateralOffset(line.entry.averageLateralOffsetM), "delta", "primary", {
         lateralOffsetM: line.entry.averageLateralOffsetM,
+      }),
+      makeEvidence("Entry window", formatDistanceAt(line.entry.startDistancePct, comparison.metrics.lapLengthM), "absolute", "secondary", {
+        targetDistancePct: line.entry.startDistancePct,
       }),
       ...(speed
         ? [makeEvidence("Minimum speed", formatSpeedDelta(speed.minSpeedDeltaKmh), "delta", "secondary", { deltaKmh: speed.minSpeedDeltaKmh })]
@@ -118,6 +124,9 @@ export function missedApexRelativeToReference(
     evidence: [
       makeEvidence("Apex offset", formatLateralOffset(line.apex.averageLateralOffsetM), "delta", "primary", {
         lateralOffsetM: line.apex.averageLateralOffsetM,
+      }),
+      makeEvidence("Apex window", formatDistanceAt(line.apex.startDistancePct, comparison.metrics.lapLengthM), "absolute", "secondary", {
+        targetDistancePct: line.apex.startDistancePct,
       }),
       ...(speed
         ? [makeEvidence("Minimum speed", formatSpeedDelta(speed.minSpeedDeltaKmh), "delta", "secondary", { deltaKmh: speed.minSpeedDeltaKmh })]
@@ -176,12 +185,12 @@ export function lateApex(
         referenceSource: apex.referenceSource,
         targetSource: apex.targetSource,
       }),
+      makeEvidence("Target apex", formatDistanceAt(apex.targetDistancePct, comparison.metrics.lapLengthM), "absolute", "secondary", {
+        targetDistancePct: apex.targetDistancePct,
+      }),
       ...(speed
         ? [makeEvidence("Exit speed", formatSpeedDelta(speed.exitSpeedDeltaKmh), "delta", "secondary", { deltaKmh: speed.exitSpeedDeltaKmh })]
         : []),
-      ...(steering?.steeringUnwindDeltaM === undefined
-        ? []
-        : [makeEvidence("Steering unwind", formatDistanceDelta(steering.steeringUnwindDeltaM), "delta", "secondary", { deltaM: steering.steeringUnwindDeltaM })]),
     ],
     linkedRules: [
       { id: "missed-apex-relative-to-reference", reason: "late apex timing can leave the reference apex missed" },
@@ -238,12 +247,12 @@ export function earlyApexPinchedExit(
         referenceSource: apex.referenceSource,
         targetSource: apex.targetSource,
       }),
+      makeEvidence("Target apex", formatDistanceAt(apex.targetDistancePct, comparison.metrics.lapLengthM), "absolute", "secondary", {
+        targetDistancePct: apex.targetDistancePct,
+      }),
       ...(insideExitOffset === undefined
         ? []
         : [makeEvidence("Exit offset", formatLateralOffset(line.exit.averageLateralOffsetM), "delta", "secondary", { lateralOffsetM: line.exit.averageLateralOffsetM })]),
-      ...(speed
-        ? [makeEvidence("Exit speed", formatSpeedDelta(speed.exitSpeedDeltaKmh), "delta", "secondary", { deltaKmh: speed.exitSpeedDeltaKmh })]
-        : []),
     ],
     linkedRules: [
       { id: "pinched-exit-relative-to-reference", reason: "early apex timing can tighten the exit" },
@@ -291,6 +300,9 @@ export function pinchedExitRelativeToReference(
     evidence: [
       makeEvidence("Exit offset", formatLateralOffset(line.exit.averageLateralOffsetM), "delta", "primary", {
         lateralOffsetM: line.exit.averageLateralOffsetM,
+      }),
+      makeEvidence("Exit window", formatDistanceAt(line.exit.startDistancePct, comparison.metrics.lapLengthM), "absolute", "secondary", {
+        targetDistancePct: line.exit.startDistancePct,
       }),
       ...(speed
         ? [makeEvidence("Exit speed", formatSpeedDelta(speed.exitSpeedDeltaKmh), "delta", "secondary", { deltaKmh: speed.exitSpeedDeltaKmh })]
@@ -400,6 +412,9 @@ export function wideWithoutBenefit(
     evidence: [
       makeEvidence("Apex offset", formatLateralOffset(line.apex.averageLateralOffsetM), "delta", "primary", {
         lateralOffsetM: line.apex.averageLateralOffsetM,
+      }),
+      makeEvidence("Apex window", formatDistanceAt(line.apex.startDistancePct, comparison.metrics.lapLengthM), "absolute", "secondary", {
+        targetDistancePct: line.apex.startDistancePct,
       }),
       ...(speed
         ? [makeEvidence("Exit speed", formatSpeedDelta(speed.exitSpeedDeltaKmh), "delta", "secondary", { deltaKmh: speed.exitSpeedDeltaKmh })]

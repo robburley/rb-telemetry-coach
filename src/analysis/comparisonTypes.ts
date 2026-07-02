@@ -36,10 +36,14 @@ export interface ComparisonMetrics {
 export interface SpeedComparisonMetrics {
   entrySpeedDeltaKmh: number;
   minSpeedDeltaKmh: number;
+  minSpeedDeltaAtTargetMinKmh: number;
+  minSpeedDeltaAtReferenceMinKmh: number;
   exitSpeedDeltaKmh: number;
   averageSpeedDeltaKmh: number;
   referenceMinSpeedKmh: number;
   targetMinSpeedKmh: number;
+  referenceSpeedAtTargetMinKmh: number;
+  targetSpeedAtReferenceMinKmh: number;
   referenceMinSpeedDistancePct: number;
   targetMinSpeedDistancePct: number;
   minSpeedDistanceDeltaM?: number;

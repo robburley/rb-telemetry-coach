@@ -9,19 +9,7 @@ export function detectDrivingEvents(
   const events: DetectedDrivingEvents = {};
   const { distancePct } = telemetry;
 
-  const brake = telemetry.channels.brake;
-  if (brake) {
-    const brakeStart = findFirstAtOrAbove(brake, config.brakeActiveThreshold);
-    const peakBrake = findPeakIndex(brake);
-    const brakeRelease =
-      peakBrake === undefined
-        ? undefined
-        : findFirstAtOrBelow(brake, config.brakeActiveThreshold, peakBrake);
-
-    events.brakeStartDistancePct = distanceAt(distancePct, brakeStart);
-    events.peakBrakeDistancePct = distanceAt(distancePct, peakBrake);
-    events.brakeReleaseDistancePct = distanceAt(distancePct, brakeRelease);
-  }
+  Object.assign(events, detectBrakeEvents(telemetry, config));
 
   const throttle = telemetry.channels.throttle;
   if (throttle) {
@@ -57,6 +45,29 @@ export function detectDrivingEvents(
               config,
             ),
           );
+  }
+
+  return events;
+}
+
+export function detectBrakeEvents(
+  telemetry: ResampledTelemetry,
+  config: EventDetectionConfig = defaultAnalysisConfig.events,
+): DetectedDrivingEvents {
+  const events: DetectedDrivingEvents = {};
+  const { distancePct } = telemetry;
+  const brake = telemetry.channels.brake;
+  if (brake) {
+    const brakeStart = findFirstAtOrAbove(brake, config.brakeActiveThreshold);
+    const peakBrake = findPeakIndex(brake);
+    const brakeRelease =
+      peakBrake === undefined
+        ? undefined
+        : findFirstAtOrBelow(brake, config.brakeActiveThreshold, peakBrake);
+
+    events.brakeStartDistancePct = distanceAt(distancePct, brakeStart);
+    events.peakBrakeDistancePct = distanceAt(distancePct, peakBrake);
+    events.brakeReleaseDistancePct = distanceAt(distancePct, brakeRelease);
   }
 
   return events;
