@@ -1,6 +1,6 @@
 ---
 name: update-changelog
-description: Update this repository's README changelog from the current unstaged Git diff, including choosing and applying a semantic version bump from package.json. Use when the user asks to repeat the changelog/version update workflow, summarize unstaged changes into changelog entries, replace an Unreleased changelog heading with a version, or bump the package version for release notes without committing.
+description: Update this repository's README changelog from the current unstaged Git diff, including choosing and applying a semantic version bump across package.json, package-lock.json, and the extension manifest. Use when the user asks to repeat the changelog/version update workflow, summarize unstaged changes into changelog entries, replace an Unreleased changelog heading with a version, or bump package and extension versions for release notes without committing.
 ---
 
 # Update Changelog
@@ -25,6 +25,7 @@ description: Update this repository's README changelog from the current unstaged
      - Minor bump for new analyzer behavior, new metrics, new configuration, or changed rule semantics.
      - Major bump only when the user explicitly wants a breaking public release or the repo has a clear post-1.0 breaking API change.
    - Keep `package-lock.json` root package versions in sync when present.
+   - Keep `src/extension/manifest.base.json` `version` in sync with `package.json`.
 
 4. Update `README.md`:
    - Add or update a `## Changelog` section near the top of the README, before long reference sections.
@@ -38,7 +39,7 @@ description: Update this repository's README changelog from the current unstaged
    - Keep the subject and body grounded in the same diff evidence used for the changelog.
 
 6. Verify without committing:
-   - Run `git diff -- README.md package.json package-lock.json` to review the changelog and version edits.
+   - Run `git diff -- README.md package.json package-lock.json src/extension/manifest.base.json` to review the changelog and version edits.
    - Run `git status --short` to confirm the expected files changed.
    - Do not stage or commit unless the user separately asks.
 
