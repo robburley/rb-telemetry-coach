@@ -232,9 +232,10 @@ The currently decoded channels are speed, brake, throttle, steering, gear, RPM, 
 
 - Category: throttle
 - Required telemetry: throttle and lap length.
-- Key metrics: longest lift duration delta and target longest lift duration.
+- Key metrics: longest lift duration delta, target longest lift duration, and reference longest lift duration.
 - Trigger logic: target longest throttle lift lasts materially farther down the road than the reference.
-- Primary evidence: `Lift duration delta`.
+- Primary evidence: `Pause vs reference`.
+- Secondary evidence: `Your throttle pause`, `Reference throttle pause`.
 - Different from: `unnecessary-throttle-lift`, which requires the reference to avoid lifts and speed to suffer.
 
 ## Steering And Rotation Rules

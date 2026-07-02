@@ -7,6 +7,7 @@ import {
   distanceWindowSpeedGainKmh,
   distanceWindowIndexes,
   formatDistanceDuration,
+  formatDurationDelta,
   formatDistanceAt,
   formatDistanceDelta,
   formatHeadingDelta,
@@ -53,6 +54,8 @@ describe("Phase 1 baseline telemetry comparison and reports", () => {
     expect(formatDistanceAt(0.1, 1000)).toBe("100 m");
     expect(formatDistanceAt(0.1234)).toBe("12.34% lap");
     expect(formatDistanceDuration(12.25)).toBe("12.3 m");
+    expect(formatDurationDelta(15)).toBe("15 m longer than reference");
+    expect(formatDurationDelta(-8)).toBe("8 m shorter than reference");
     expect(formatSpeedDelta(-4.25)).toBe("4.3 km/h slower");
     expect(formatPedalDelta(0.125)).toBe("13% more");
     expect(formatPedalPointDelta(-0.125)).toBe("13 pp lower");
@@ -900,8 +903,16 @@ describe("Phase 3 throttle lift quality", () => {
         confidence: 0.69,
         evidence: expect.arrayContaining([
           expect.objectContaining({
-            label: "Lift duration delta",
+            label: "Pause vs reference",
             raw: expect.objectContaining({ durationDeltaM: expect.any(Number) }),
+          }),
+          expect.objectContaining({
+            label: "Your throttle pause",
+            raw: expect.objectContaining({ targetLongestLiftDurationM: expect.any(Number) }),
+          }),
+          expect.objectContaining({
+            label: "Reference throttle pause",
+            raw: expect.objectContaining({ referenceLongestLiftDurationM: expect.any(Number) }),
           }),
         ]),
       }),

@@ -1,5 +1,6 @@
 import {
   formatDistanceDuration,
+  formatDurationDelta,
   formatPedalPointDelta,
   formatSpeedDelta,
   makeEvidence,
@@ -482,17 +483,20 @@ export function longThrottleLift(
     id: "long-throttle-lift",
     priority: 66,
     title: "Shorten the throttle pause",
-    why: "Your longest lift lasts farther down the road than the reference, so the car spends longer waiting before the exit drive rebuilds.",
+    why: `Your throttle pause was ${formatDurationDelta(durationDelta)} (${formatDistanceDuration(lift.targetLongestLiftDurationM)} vs ${formatDistanceDuration(lift.referenceLongestLiftDurationM)}), so the car spent more distance waiting before the exit drive rebuilds.`,
     practiceCue: "Use a quick breath if needed, then return to a progressive throttle ramp as soon as the car accepts it.",
     category: "throttle",
     severity: durationDelta > comparison.config.rules.severity.throttle.liftDurationDeltaM ? "high" : "medium",
     confidence: 0.69,
     evidence: [
-      makeEvidence("Lift duration delta", formatDistanceDuration(durationDelta), "delta", "primary", {
+      makeEvidence("Pause vs reference", formatDurationDelta(durationDelta), "delta", "primary", {
         durationDeltaM: durationDelta,
       }),
-      makeEvidence("Target lift duration", formatDistanceDuration(lift.targetLongestLiftDurationM), "absolute", "secondary", {
+      makeEvidence("Your throttle pause", formatDistanceDuration(lift.targetLongestLiftDurationM), "absolute", "primary", {
         targetLongestLiftDurationM: lift.targetLongestLiftDurationM ?? 0,
+      }),
+      makeEvidence("Reference throttle pause", formatDistanceDuration(lift.referenceLongestLiftDurationM), "comparison", "secondary", {
+        referenceLongestLiftDurationM: lift.referenceLongestLiftDurationM ?? 0,
       }),
     ],
     linkedRules: [{ id: "exit-hesitation", reason: "long lifts can leave the exit drive delayed" }],

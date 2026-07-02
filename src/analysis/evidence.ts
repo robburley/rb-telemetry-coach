@@ -37,6 +37,17 @@ export function formatDistanceDuration(distanceM: number | undefined): string {
   return `${formatNumber(Math.max(0, distanceM), 1)} m`;
 }
 
+export function formatDurationDelta(deltaM: number | undefined): string {
+  if (deltaM === undefined) {
+    return "unavailable";
+  }
+  if (deltaM === 0) {
+    return "same length as reference";
+  }
+  const direction = deltaM > 0 ? "longer" : "shorter";
+  return `${formatNumber(Math.abs(deltaM), 1)} m ${direction} than reference`;
+}
+
 export function formatLateralOffset(offsetM: number | undefined): string {
   if (offsetM === undefined) {
     return "unavailable";
