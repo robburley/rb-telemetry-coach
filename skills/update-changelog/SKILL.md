@@ -32,11 +32,16 @@ description: Update this repository's README changelog from the current unstaged
    - Preserve existing changelog content if it exists; add the new version above older entries.
    - Keep entries short, action-oriented, and grounded in changed behavior.
 
-5. Verify without committing:
+5. Prepare a commit message:
+   - Draft a clear imperative subject that covers the changelog/version update and the behavior summarized from the diff.
+   - Include a short optional body when the change has several distinct behavior groups.
+   - Keep the subject and body grounded in the same diff evidence used for the changelog.
+
+6. Verify without committing:
    - Run `git diff -- README.md package.json package-lock.json` to review the changelog and version edits.
    - Run `git status --short` to confirm the expected files changed.
    - Do not stage or commit unless the user separately asks.
 
 ## Reporting
 
-In the final response, state the selected version, the files updated, and whether validation commands or tests were run. Mention that no commit was made unless the user asked for one.
+In the final response, state the selected version, the files updated, whether validation commands or tests were run, and a ready-to-use git commit message. Mention that no commit was made unless the user asked for one.
